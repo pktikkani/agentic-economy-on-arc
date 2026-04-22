@@ -22,6 +22,8 @@ EVENT_PREFIX = "@@DEMO_EVENT@@ "
 
 
 class AgenticTextualDemo(App[None]):
+    TITLE = "Arc Agent-to-Agent Demo"
+
     CSS = """
     Screen {
         layout: vertical;
@@ -119,7 +121,7 @@ class AgenticTextualDemo(App[None]):
                     yield Static("JUDGE", classes="panel-label")
                     yield RichLog(id="judge", classes="panel-log", auto_scroll=True, markup=True, wrap=True)
                 with Vertical(classes="panel"):
-                    yield Static("CHAIN", classes="panel-label")
+                    yield Static("ARC CHAIN / REPUTATION", classes="panel-label")
                     yield RichLog(id="chain", classes="panel-log", auto_scroll=True, markup=True, wrap=True)
         with Vertical(id="raw-panel"):
             yield Static("LIVE LOG / LINKS", id="raw-label", classes="panel-label")
@@ -182,7 +184,7 @@ class AgenticTextualDemo(App[None]):
                 [
                     f"[bold]Task:[/] {self.run_state['task']}",
                     f"[bold]Broker:[/] {self.run_state['broker']}    [bold]Judge:[/] {self.run_state['judge']}",
-                    f"[bold]Feedback Tx:[/] {self.run_state['tx']}",
+                    f"[bold]Arc Feedback Tx:[/] {self.run_state['tx']}",
                     f"[bold]Progress:[/] {self.run_state['progress']}    [bold]Status:[/] {self.run_state['status']}",
                 ]
             )
@@ -294,7 +296,7 @@ class AgenticTextualDemo(App[None]):
             tx = event["txHash"]
             self.latest_tx_url = f"{self.explorer}/tx/{tx}"
             chain.write(
-                "[bold magenta]Feedback written[/] "
+                "[bold magenta]Arc feedback recorded[/] "
                 f"broker={event['brokerId']}\n{self.latest_tx_url}"
             )
             self.query_one("#raw", RichLog).write(f"Arc tx: {self.latest_tx_url}")
@@ -311,7 +313,7 @@ class AgenticTextualDemo(App[None]):
             self.run_state["status"] = "Task failed"
         elif event_type == "run_summary":
             chain.write(
-                f"[bold magenta]Summary[/] completed={event['completed']}/{event['total']} spent=${event['totalUsdcSpent']:.4f} avg={event['avgLatencyMs']}ms"
+                f"[bold magenta]Arc run summary[/] completed={event['completed']}/{event['total']} spent=${event['totalUsdcSpent']:.4f} avg={event['avgLatencyMs']}ms"
             )
             self.run_state["status"] = "Completed"
         self._refresh_summary()
