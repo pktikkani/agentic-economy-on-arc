@@ -1,0 +1,39 @@
+{
+  "name": "agenticeconomyhackathon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "demo": "tsx src/demo/run.ts",
+    "demo:textual": "python3 scripts/textual_demo.py",
+    "smoke": "tsx scripts/smoke-transfer.ts",
+    "fifty": "tsx scripts/fifty-tx.ts",
+    "test:watch": "vitest",
+    "brokers": "tsx src/brokers/seller-server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.64",
+    "@circle-fin/developer-controlled-wallets": "^10.3.0",
+    "@circle-fin/x402-batching": "^2.1.0",
+    "@google/genai": "^1.50.1",
+    "@x402/core": "^2.10.0",
+    "@x402/evm": "^2.10.0",
+    "ai": "^6.0.168",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "viem": "^2.48.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
