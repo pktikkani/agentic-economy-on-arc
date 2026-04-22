@@ -78,8 +78,9 @@ class FiftyTextualDemo(App[None]):
         Binding("o", "open_proof_link", "Open Proof"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, backend: str = "ts") -> None:
         super().__init__()
+        self.backend = backend
         self.repo_root = Path(__file__).resolve().parents[1]
         self.proc: subprocess.Popen[str] | None = None
         self.latest_proof_url: str | None = None
@@ -185,8 +186,12 @@ class FiftyTextualDemo(App[None]):
 
         env = os.environ.copy()
         env["FIFTY_EMIT_EVENTS"] = "1"
+        if self.backend == "a2a":
+            cmd = [sys.executable, str(self.repo_root / "scripts" / "fifty_a2a.py")]
+        else:
+            cmd = ["npm", "run", "fifty:cli"]
         proc = subprocess.Popen(
-            ["npm", "run", "fifty:cli"],
+            cmd,
             cwd=self.repo_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -256,7 +261,12 @@ class FiftyTextualDemo(App[None]):
 
 
 def main() -> None:
-    app = FiftyTextualDemo()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Textual frontend for the 50-tx proof.")
+    parser.add_argument("--backend", choices=["ts", "a2a"], default="ts")
+    args = parser.parse_args()
+    app = FiftyTextualDemo(backend=args.backend)
     app.run()
 
 
