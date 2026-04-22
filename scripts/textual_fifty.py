@@ -184,7 +184,7 @@ class FiftyTextualDemo(App[None]):
         env = os.environ.copy()
         env["FIFTY_EMIT_EVENTS"] = "1"
         proc = subprocess.Popen(
-            ["npm", "run", "fifty"],
+            ["npm", "run", "fifty:cli"],
             cwd=self.repo_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
