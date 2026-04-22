@@ -296,8 +296,9 @@ class AgenticTextualDemo(App[None]):
             tx = event["txHash"]
             self.latest_tx_url = f"{self.explorer}/tx/{tx}"
             chain.write(
-                "[bold magenta]Arc feedback recorded[/] "
-                f"broker={event['brokerId']}\n{self.latest_tx_url}"
+                "[bold magenta]Arc reputation feedback recorded[/] "
+                f"for broker={event['brokerId']} score={self.run_state['judge']}\n"
+                f"[magenta]Arc tx proof link:[/] {self.latest_tx_url}"
             )
             self.query_one("#raw", RichLog).write(f"Arc tx: {self.latest_tx_url}")
             self.run_state["tx"] = tx
@@ -313,7 +314,7 @@ class AgenticTextualDemo(App[None]):
             self.run_state["status"] = "Task failed"
         elif event_type == "run_summary":
             chain.write(
-                f"[bold magenta]Arc run summary[/] completed={event['completed']}/{event['total']} spent=${event['totalUsdcSpent']:.4f} avg={event['avgLatencyMs']}ms"
+                f"[bold magenta]On-chain update summary[/] completed={event['completed']}/{event['total']} spent=${event['totalUsdcSpent']:.4f} avg={event['avgLatencyMs']}ms"
             )
             self.run_state["status"] = "Completed"
         self._refresh_summary()
