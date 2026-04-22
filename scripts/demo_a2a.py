@@ -224,6 +224,14 @@ async def main() -> None:
                     ],
                 }
             )
+            emit_event(
+                {
+                    "type": "a2a_assessment_started",
+                    "service": profile.service,
+                    "complexity": profile.complexity,
+                    "count": len(matching),
+                }
+            )
 
             assessment_prompt = (
                 f"Task: {task}\n"
@@ -241,6 +249,12 @@ async def main() -> None:
                     for broker in matching
                 ]
             )
+            emit_event(
+                {
+                    "type": "a2a_assessment_results",
+                    "assessments": [assessment.model_dump() for assessment in assessments],
+                }
+            )
 
             choice_prompt = (
                 f"Task: {task}\n"
@@ -251,6 +265,14 @@ async def main() -> None:
             )
             choice = (await requester_agent.run(choice_prompt)).output
             chosen = next(b for b in state if b["id"] == choice.broker_id)
+            emit_event(
+                {
+                    "type": "a2a_decision",
+                    "brokerId": chosen["id"],
+                    "brokerName": chosen["name"],
+                    "reason": choice.reason,
+                }
+            )
             emit_event(
                 {
                     "type": "broker_selected",

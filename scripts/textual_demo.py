@@ -280,6 +280,22 @@ class AgenticTextualDemo(App[None]):
                 rep_text = "no rep" if rep is None else f"rep={rep['avg']:.2f} ({rep['count']})"
                 snapshots.append(f"{item['id']} {item['service']} {item['price']} {rep_text}")
             requester.write("[cyan]Broker view:[/] " + " | ".join(snapshots))
+        elif event_type == "a2a_assessment_started":
+            requester.write(
+                "[bold cyan]A2A assessment started[/] "
+                f"service={event['service']} complexity={event['complexity']} candidates={event['count']}"
+            )
+        elif event_type == "a2a_assessment_results":
+            broker.write("[yellow]A2A broker assessments[/]")
+            for item in event["assessments"]:
+                broker.write(
+                    f"  {item['broker_id']} {item['broker_name']} fit={item['fit_score']:.2f} reason={item['reason']}"
+                )
+        elif event_type == "a2a_decision":
+            requester.write(
+                "[bold cyan]A2A requester decision[/] "
+                f"{event['brokerId']} {event['brokerName']} reason={event['reason']}"
+            )
         elif event_type == "broker_selected":
             broker.write(
                 f"[bold yellow]Selected {event['brokerId']} {event['brokerName']}[/] service={event['service']} input={event['input'][:90]}"
