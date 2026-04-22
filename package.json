@@ -7,9 +7,9 @@
     "test": "vitest run",
     "demo": "tsx src/demo/run.ts",
     "demo:textual": "python3 scripts/textual_demo.py",
-    "fifty:textual": "python3 scripts/textual_fifty.py",
+    "fifty": "python3 scripts/textual_fifty.py",
+    "fifty:cli": "tsx scripts/fifty-tx.ts",
     "smoke": "tsx scripts/smoke-transfer.ts",
-    "fifty": "tsx scripts/fifty-tx.ts",
     "test:watch": "vitest",
     "brokers": "tsx src/brokers/seller-server.ts"
   },

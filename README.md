@@ -109,14 +109,13 @@ npm run brokers
 
 **In another terminal:**
 
-- **50-tx proof** — the hackathon's hard requirement, 50 real settlements in ~89s
+- **50-tx proof** — the hackathon's hard requirement, now shown in a Textual UI
   ```bash
   npm run fifty
   ```
-
-- **50-tx Textual UI** — live progress view for the proof run
+- **50-tx CLI fallback** — raw terminal output + JSON receipt
   ```bash
-  uv run python3 scripts/textual_fifty.py
+  npm run fifty:cli
   ```
 
 - **Full agent demo** — end-to-end user-task → broker selection → payment
