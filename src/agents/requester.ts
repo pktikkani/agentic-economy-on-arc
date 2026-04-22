@@ -69,7 +69,7 @@ export async function runRequester(task: string): Promise<RequesterResult> {
       id: b.id,
       service: b.service,
       price: b.price,
-      reputation: reps[b.id],
+      reputation: reps[b.id] ?? null,
     })),
   });
 

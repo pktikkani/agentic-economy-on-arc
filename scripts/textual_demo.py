@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import webbrowser
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -82,6 +83,8 @@ class AgenticTextualDemo(App[None]):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "rerun", "Rerun"),
+        Binding("y", "copy_tx_link", "Copy Tx Link"),
+        Binding("o", "open_tx_link", "Open Tx"),
     ]
 
     def __init__(self, demo_n: int) -> None:
@@ -89,6 +92,8 @@ class AgenticTextualDemo(App[None]):
         self.demo_n = demo_n
         self.repo_root = Path(__file__).resolve().parents[1]
         self.demo_proc: subprocess.Popen[str] | None = None
+        self.explorer = "https://testnet.arcscan.app"
+        self.latest_tx_url: str | None = None
         self.run_state = {
             "task": "idle",
             "broker": "—",
@@ -143,6 +148,20 @@ class AgenticTextualDemo(App[None]):
     def action_quit(self) -> None:
         self._stop_demo_proc()
         self.exit()
+
+    def action_copy_tx_link(self) -> None:
+        if not self.latest_tx_url:
+            self.notify("No tx link yet.", severity="warning")
+            return
+        self.copy_to_clipboard(self.latest_tx_url)
+        self.notify("Copied Arc tx link.")
+
+    def action_open_tx_link(self) -> None:
+        if not self.latest_tx_url:
+            self.notify("No tx link yet.", severity="warning")
+            return
+        webbrowser.open(self.latest_tx_url)
+        self.notify("Opened Arc tx link.")
 
     def on_unmount(self) -> None:
         self._stop_demo_proc()
@@ -233,6 +252,7 @@ class AgenticTextualDemo(App[None]):
         chain = self.query_one("#chain", RichLog)
 
         if event_type == "run_started":
+            self.explorer = event["explorer"]
             requester.write(
                 f"[bold cyan]Run started[/] tasks={event['totalTasks']} model={event['model']} chain={event['chainId']}"
             )
@@ -272,7 +292,12 @@ class AgenticTextualDemo(App[None]):
             self.run_state["judge"] = f"{event['quality']:.2f}"
         elif event_type == "feedback_written":
             tx = event["txHash"]
-            chain.write(f"[bold magenta]Feedback written[/] broker={event['brokerId']} tx={tx}")
+            self.latest_tx_url = f"{self.explorer}/tx/{tx}"
+            chain.write(
+                "[bold magenta]Feedback written[/] "
+                f"broker={event['brokerId']}\n{self.latest_tx_url}"
+            )
+            self.query_one("#raw", RichLog).write(f"Arc tx: {self.latest_tx_url}")
             self.run_state["tx"] = tx
         elif event_type == "task_completed":
             requester.write(

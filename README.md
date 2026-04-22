@@ -114,6 +114,11 @@ npm run brokers
   npm run fifty
   ```
 
+- **50-tx Textual UI** — live progress view for the proof run
+  ```bash
+  uv run python3 scripts/textual_fifty.py
+  ```
+
 - **Full agent demo** — end-to-end user-task → broker selection → payment
   → judge → reputation feedback
   ```bash
@@ -128,6 +133,7 @@ npm run brokers
   uv pip install -r requirements-textual.txt
   python3 scripts/textual_demo.py --tasks 3
   ```
+  Keys: `y` copies the latest Arc tx link, `o` opens it in the browser.
 
 For the submission video, keep the terminal as the main view, but also show:
 - the Circle Developer Console transaction entry for the buyer wallet

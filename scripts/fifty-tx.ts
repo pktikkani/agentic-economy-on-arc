@@ -20,11 +20,24 @@ import { getCircleWalletConfig } from "../src/circle/dev-wallet.js";
 // GET works universally and sidesteps the SDK's POST-body stripping.
 const SELLER_URL = process.env.SELLER_URL ?? "http://localhost:3001/service-fast";
 const NUM_TX = Number(process.env.NUM_TX ?? 50);
+const EVENT_PREFIX = "@@FIFTY_EVENT@@";
+
+function emitFiftyEvent(event: unknown) {
+  if (process.env.FIFTY_EMIT_EVENTS !== "1") return;
+  console.log(`${EVENT_PREFIX} ${JSON.stringify(event)}`);
+}
 
 async function main() {
   // Top up Gateway so we don't run out mid-flight
   await ensureGatewayFunded(2);
   const { walletAddress } = getCircleWalletConfig();
+  emitFiftyEvent({
+    type: "run_started",
+    total: NUM_TX,
+    sellerUrl: SELLER_URL,
+    buyer: walletAddress,
+    buyerUrl: `${config.arc.explorer}/address/${walletAddress}`,
+  });
 
   console.log(`Firing ${NUM_TX} nanopayments at ${SELLER_URL}...`);
   const started = Date.now();
@@ -42,9 +55,26 @@ async function main() {
       const ok = res.status === 200;
       results.push({ i, status: res.status, durMs, ok });
       console.log(`[${i + 1}/${NUM_TX}] status=${res.status} (${durMs}ms)`);
+      emitFiftyEvent({
+        type: "tx_progress",
+        index: i + 1,
+        total: NUM_TX,
+        status: res.status,
+        durMs,
+        ok,
+      });
     } catch (e: any) {
       results.push({ i, status: 0, durMs: Date.now() - t, ok: false, note: e.message });
       console.error(`[${i + 1}/${NUM_TX}] FAILED: ${e.message}`);
+      emitFiftyEvent({
+        type: "tx_progress",
+        index: i + 1,
+        total: NUM_TX,
+        status: 0,
+        durMs: Date.now() - t,
+        ok: false,
+        note: e.message,
+      });
     }
   }
 
@@ -72,6 +102,17 @@ async function main() {
   fs.mkdirSync("demo-output", { recursive: true });
   const outfile = path.join("demo-output", `fifty-tx-${Date.now()}.json`);
   fs.writeFileSync(outfile, JSON.stringify({ summary, results }, null, 2));
+  emitFiftyEvent({
+    type: "run_summary",
+    okCount,
+    total: NUM_TX,
+    totalWallMs: totalMs,
+    avgLatencyMs: avg,
+    totalUsdcSpent: summary.totalUsdcSpent,
+    buyer: summary.buyer,
+    buyerUrl: `${config.arc.explorer}/address/${summary.buyer}`,
+    receipt: outfile,
+  });
 
   console.log("\n" + "=".repeat(80));
   console.log(`50-TX PROOF: ${okCount}/${NUM_TX} ok in ${(totalMs / 1000).toFixed(1)}s`);
