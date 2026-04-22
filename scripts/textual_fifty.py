@@ -21,6 +21,8 @@ EVENT_PREFIX = "@@FIFTY_EVENT@@ "
 
 
 class FiftyTextualDemo(App[None]):
+    TITLE = "Arc Nanopayment Throughput Proof"
+
     CSS = """
     Screen {
         layout: vertical;
