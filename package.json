@@ -7,6 +7,8 @@
     "test": "vitest run",
     "demo": "tsx src/demo/run.ts",
     "demo:textual": "python3 scripts/textual_demo.py",
+    "demo:a2a": "uv run python3 scripts/demo_a2a.py --tasks 1",
+    "demo:a2a:textual": "uv run python3 scripts/textual_demo.py --backend a2a --tasks 1",
     "fifty": "python3 scripts/textual_fifty.py",
     "fifty:cli": "tsx scripts/fifty-tx.ts",
     "smoke": "tsx scripts/smoke-transfer.ts",

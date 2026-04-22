@@ -89,9 +89,10 @@ class AgenticTextualDemo(App[None]):
         Binding("o", "open_tx_link", "Open Tx"),
     ]
 
-    def __init__(self, demo_n: int) -> None:
+    def __init__(self, demo_n: int, backend: str = "ts") -> None:
         super().__init__()
         self.demo_n = demo_n
+        self.backend = backend
         self.repo_root = Path(__file__).resolve().parents[1]
         self.demo_proc: subprocess.Popen[str] | None = None
         self.explorer = "https://testnet.arcscan.app"
@@ -214,10 +215,14 @@ class AgenticTextualDemo(App[None]):
             return
 
         env = os.environ.copy()
-        env["DEMO_N"] = str(self.demo_n)
-        env["DEMO_EMIT_EVENTS"] = "1"
+        if self.backend == "a2a":
+            cmd = [sys.executable, str(self.repo_root / "scripts" / "demo_a2a.py"), "--tasks", str(self.demo_n)]
+        else:
+            env["DEMO_N"] = str(self.demo_n)
+            env["DEMO_EMIT_EVENTS"] = "1"
+            cmd = ["npm", "run", "demo"]
         proc = subprocess.Popen(
-            ["npm", "run", "demo"],
+            cmd,
             cwd=self.repo_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -323,8 +328,14 @@ class AgenticTextualDemo(App[None]):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Textual frontend for the agentic economy demo.")
     parser.add_argument("--tasks", type=int, default=3, help="How many demo tasks to run.")
+    parser.add_argument(
+        "--backend",
+        choices=["ts", "a2a"],
+        default="ts",
+        help="Demo backend to run.",
+    )
     args = parser.parse_args()
-    app = AgenticTextualDemo(demo_n=args.tasks)
+    app = AgenticTextualDemo(demo_n=args.tasks, backend=args.backend)
     app.run()
 
 
