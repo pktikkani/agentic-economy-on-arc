@@ -207,6 +207,8 @@ class FiftyTextualDemo(App[None]):
         if line.startswith(EVENT_PREFIX):
             self._handle_event(json.loads(line[len(EVENT_PREFIX) :]))
             return
+        if line.startswith("[") and "/" in line and "status=" in line:
+            return
         self.query_one("#proof", RichLog).write(line)
 
     def _handle_event(self, event: dict) -> None:
