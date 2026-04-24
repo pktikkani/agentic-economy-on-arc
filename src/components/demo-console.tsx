@@ -99,7 +99,7 @@ function linkifiedText(text: string) {
         href={part}
         target="_blank"
         rel="noreferrer"
-        className="text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-white"
+        className="break-all text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-white"
       >
         {part}
       </a>
@@ -402,37 +402,37 @@ export function DemoConsole() {
   const demoTxUrl = demo.feedbackTx ? `https://testnet.arcscan.app/tx/${demo.feedbackTx}` : "";
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1760px] flex-col gap-6 px-5 py-6 md:px-8 xl:px-10">
-      <header className="grid gap-6 rounded-[2rem] border border-white/12 bg-[linear-gradient(125deg,rgba(255,184,76,0.16),rgba(7,15,30,0.95)_34%,rgba(5,11,24,0.98)_100%)] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.42)] xl:grid-cols-[minmax(0,1.35fr)_420px] xl:p-8">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+      <header className="grid gap-6 rounded-[1.75rem] border border-white/12 bg-[linear-gradient(125deg,rgba(255,184,76,0.16),rgba(7,15,30,0.95)_34%,rgba(5,11,24,0.98)_100%)] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.42)] lg:rounded-[2rem] lg:p-7 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid gap-6">
           <div className="max-w-4xl">
-            <p className="mb-3 inline-flex rounded-full border border-amber-300/30 bg-amber-200/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-amber-200/85">
+            <p className="mb-3 inline-flex max-w-full rounded-full border border-amber-300/30 bg-amber-200/10 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-amber-200/85 sm:text-xs">
               Next.js A2A Demo Surface
             </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl xl:text-[3.7rem] xl:leading-[1.02]">
+            <h1 className="text-balance text-4xl font-semibold tracking-tight text-white md:text-5xl xl:text-[3.45rem] xl:leading-[1.02]">
               Arc Agent-to-Agent Marketplace
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
+            <p className="mt-4 max-w-3xl text-pretty text-sm leading-7 text-slate-300 md:text-base">
               A web-native control room for the same broker selection, sub-cent USDC payment, judge scoring, and Arc
               reputation write you already proved in the terminal demo.
             </p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-[220px_minmax(260px,1fr)_minmax(260px,1fr)]">
-            <label className="grid min-w-0 gap-2 rounded-3xl border border-white/10 bg-black/20 p-4">
+          <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] xl:gap-4">
+            <label className="grid min-w-0 gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 lg:rounded-3xl">
               <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Demo Tasks</span>
               <input
                 type="number"
                 min={1}
                 value={tasks}
                 onChange={(event) => setTasks(Math.max(1, Number(event.target.value) || 1))}
-                className="min-w-0 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+                className="min-w-0 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-amber-300/45"
               />
             </label>
 
             <button
               onClick={startDemo}
               disabled={activeRun !== null}
-              className="min-w-0 rounded-3xl border border-amber-300/25 bg-[linear-gradient(145deg,rgba(245,190,79,0.92),rgba(181,135,32,0.94))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-w-0 rounded-2xl border border-amber-300/25 bg-[linear-gradient(145deg,rgba(245,190,79,0.92),rgba(181,135,32,0.94))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 lg:rounded-3xl"
             >
               <span className="block text-[11px] uppercase tracking-[0.24em] text-slate-900/70">Primary Run</span>
               <span className="mt-2 block text-lg">Run A2A Demo</span>
@@ -444,7 +444,7 @@ export function DemoConsole() {
             <button
               onClick={startFifty}
               disabled={activeRun !== null}
-              className="min-w-0 rounded-3xl border border-cyan-400/25 bg-[linear-gradient(145deg,rgba(104,198,224,0.92),rgba(70,126,156,0.98))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(56,189,248,0.15)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-w-0 rounded-2xl border border-cyan-400/25 bg-[linear-gradient(145deg,rgba(104,198,224,0.92),rgba(70,126,156,0.98))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(56,189,248,0.15)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 lg:rounded-3xl"
             >
               <span className="block text-[11px] uppercase tracking-[0.24em] text-slate-900/70">Proof Run</span>
               <span className="mt-2 block text-lg">Run 50-Tx Proof</span>
@@ -455,8 +455,8 @@ export function DemoConsole() {
           </div>
         </div>
 
-        <div className="grid gap-4">
-          <div className="grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
+        <div className="grid gap-4 xl:self-start">
+          <div className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300 lg:rounded-3xl">
             <a
               className="rounded-full border border-white/10 px-4 py-2 text-center transition hover:border-amber-300/40 hover:text-white"
               href="https://console.circle.com/wallets/dev/transactions"
@@ -475,12 +475,12 @@ export function DemoConsole() {
             </a>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 lg:rounded-3xl">
             <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Run State</span>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xl font-semibold text-white">{activeRun ?? "idle"}</p>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 line-clamp-3 text-sm text-slate-300">
                   {activeRun === "fifty" ? fifty.status : demo.status}
                 </p>
               </div>
@@ -495,7 +495,7 @@ export function DemoConsole() {
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_0.8fr_0.7fr_1.3fr]">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.15fr_0.75fr_0.65fr_1.25fr]">
         <MetricCard label="Task" value={demo.task} accent="amber" />
         <MetricCard label="Broker" value={demo.broker} accent="orange" />
         <MetricCard label="Judge" value={demo.judge} accent="lime" valueClassName="font-mono text-3xl" />
@@ -518,23 +518,23 @@ export function DemoConsole() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <Panel title="REQUESTER" minHeight="min-h-[22rem]">
+        <Panel title="REQUESTER">
           {demo.requester.length ? demo.requester.join("\n") : "Waiting for requester state"}
         </Panel>
-        <Panel title="JUDGE" minHeight="min-h-[22rem]">
+        <Panel title="JUDGE">
           {demo.judgePanel.length ? demo.judgePanel.join("\n") : "Waiting for judge output"}
         </Panel>
-        <Panel title="BROKER" minHeight="min-h-[20rem]">
+        <Panel title="BROKER">
           {demo.brokerPanel.length ? demo.brokerPanel.join("\n") : "Waiting for broker execution"}
         </Panel>
-        <Panel title="ARC CHAIN / REPUTATION" minHeight="min-h-[20rem]">
+        <Panel title="ARC CHAIN / REPUTATION">
           {demo.chainPanel.length ? demo.chainPanel.join("\n") : "Waiting for Arc feedback write"}
         </Panel>
       </section>
 
       <section className="grid gap-5">
-        <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
-          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-5 shadow-[0_18px_40px_rgba(0,0,0,0.35)] lg:rounded-[1.75rem] lg:p-6">
+          <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.22em] text-cyan-300/80">A2A Throughput Proof</p>
               <h2 className="mt-2 text-2xl font-semibold text-white">50-transaction settlement run</h2>
@@ -555,14 +555,14 @@ export function DemoConsole() {
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
                 <Stat label="Buyer" value={shortHash(fifty.buyer, 8, 6)} href={fifty.buyerUrl || undefined} />
                 <Stat label="Progress" value={`${fifty.progress}/${fifty.total}`} />
                 <Stat label="Arc Proof Txs" value={`${fifty.proofTxs.length}/${fifty.total}`} />
                 <Stat label="Avg Latency" value={fifty.avgLatency} />
                 <Stat label="Service Spend" value={fifty.spent} />
               </div>
-              <div className="mt-5 grid gap-3 text-sm text-slate-300 xl:grid-cols-3">
+              <div className="mt-5 grid gap-3 text-sm text-slate-300 lg:grid-cols-3">
                 <p className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
                   <span className="block text-xs uppercase tracking-[0.18em] text-slate-500">Seller URL</span>
                   <span className="mt-2 block break-all">{fifty.sellerUrl || "Not started"}</span>
@@ -592,7 +592,7 @@ export function DemoConsole() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-2">
-          <Panel title="DEMO LIVE LOG / LINKS" className="min-h-[26rem]">
+          <Panel title="DEMO LIVE LOG / LINKS" tall>
             {[
               ...demo.logs,
               demo.proofLinks.length ? "" : "",
@@ -601,7 +601,7 @@ export function DemoConsole() {
               .filter(Boolean)
               .join("\n") || "Run the A2A demo to populate task proof links"}
           </Panel>
-          <Panel title="50-TX PROOF LOG / LINKS" className="min-h-[26rem]">
+          <Panel title="50-TX PROOF LOG / LINKS" tall>
             {fifty.logs.length ? fifty.logs.join("\n") : "Run the 50-transaction proof to populate throughput logs"}
           </Panel>
         </div>
@@ -636,7 +636,7 @@ function MetricCard({
 
   const content = (
     <div
-      className={`flex h-full min-h-[9.5rem] flex-col justify-between rounded-[1.4rem] border border-white/10 bg-gradient-to-br ${accentMap[accent]} p-5`}
+      className={`flex h-full min-h-[8.75rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-gradient-to-br ${accentMap[accent]} p-5`}
     >
       <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</p>
       <div className="mt-4">
@@ -662,21 +662,25 @@ function Panel({
   title,
   children,
   className = "",
-  minHeight = "",
+  tall = false,
 }: {
   title: string;
   children: string;
   className?: string;
-  minHeight?: string;
+  tall?: boolean;
 }) {
   return (
     <section
-      className={`rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-5 shadow-[0_18px_40px_rgba(0,0,0,0.35)] ${minHeight} ${className}`}
+      className={`rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.35)] lg:rounded-[1.75rem] lg:p-5 ${className}`}
     >
       <div className="mb-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1 text-xs uppercase tracking-[0.22em] text-amber-200">
         {title}
       </div>
-      <pre className="overflow-auto whitespace-pre-wrap break-all rounded-[1.2rem] border border-white/8 bg-black/30 p-4 text-sm leading-8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <pre
+        className={`overflow-auto whitespace-pre-wrap break-words rounded-[1.2rem] border border-white/8 bg-black/30 p-4 text-[13px] leading-7 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:text-sm sm:leading-8 ${
+          tall ? "min-h-[20rem] max-h-[42rem]" : "min-h-[16rem] max-h-[28rem]"
+        }`}
+      >
         {linkifiedText(children)}
       </pre>
     </section>
@@ -685,7 +689,7 @@ function Panel({
 
 function Stat({ label, value, href }: { label: string; value: string; href?: string }) {
   const content = (
-    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-2 break-all text-sm text-white">{value}</p>
     </div>
