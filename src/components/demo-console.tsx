@@ -10,11 +10,23 @@ type BrokerSnapshot = {
   reputation: { count: number; avg: number } | null;
 };
 
+type DemoResult = {
+  index: number;
+  total: number;
+  task: string;
+  broker: string;
+  judgeScore: number;
+  priceUsd: number;
+  latencyMs: number;
+  txHash: string;
+};
+
 type DemoState = {
   task: string;
   broker: string;
   judge: string;
   feedbackTx: string;
+  results: DemoResult[];
   proofLinks: string[];
   requester: string[];
   brokerPanel: string[];
@@ -45,6 +57,7 @@ const initialDemoState: DemoState = {
   broker: "Not selected",
   judge: "Pending",
   feedbackTx: "",
+  results: [],
   proofLinks: [],
   requester: [],
   brokerPanel: [],
@@ -188,6 +201,12 @@ export function DemoConsole() {
             return {
               ...state,
               task: payload.task,
+              broker: "Selecting broker",
+              judge: "Pending",
+              feedbackTx: "",
+              brokerPanel: [],
+              judgePanel: [],
+              chainPanel: [],
               logs: [...state.logs, `task ${payload.index}/${payload.total}: ${payload.task}`],
             };
           case "requester_snapshot":
@@ -278,6 +297,19 @@ export function DemoConsole() {
             return {
               ...state,
               status: `Completed ${payload.index}/${payload.total}`,
+              results: [
+                ...state.results.filter((result) => result.index !== payload.index),
+                {
+                  index: payload.index,
+                  total: payload.total,
+                  task: state.task,
+                  broker: state.broker,
+                  judgeScore: payload.judgeScore,
+                  priceUsd: payload.priceUsd,
+                  latencyMs: payload.latencyMs,
+                  txHash: state.feedbackTx,
+                },
+              ].sort((a, b) => a.index - b.index),
               logs: [
                 ...state.logs,
                 `completed ${payload.index}/${payload.total} broker=${payload.brokerId} spent=${fmtUsd(
@@ -517,6 +549,36 @@ export function DemoConsole() {
         />
       </section>
 
+      <section className="rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.35)] lg:rounded-[1.75rem] lg:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-amber-200">A2A Task History</p>
+            <p className="mt-1 text-sm text-slate-400">
+              One card per completed task, each with its own Arc reputation proof transaction.
+            </p>
+          </div>
+          <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            {demo.results.length}/{tasks} complete
+          </span>
+        </div>
+
+        {demo.results.length ? (
+          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {demo.results.map((result) => (
+              <TaskResultCard
+                key={`${result.index}-${result.txHash}`}
+                result={result}
+                onCopy={(text, label) => void copyText(text, label)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[1.2rem] border border-white/8 bg-black/25 p-4 text-sm text-slate-400">
+            Run more than one A2A task to see individual broker decisions and Arc proof links here.
+          </div>
+        )}
+      </section>
+
       <section className="grid gap-5 xl:grid-cols-2">
         <Panel title="REQUESTER">
           {demo.requester.length ? demo.requester.join("\n") : "Waiting for requester state"}
@@ -636,7 +698,7 @@ function MetricCard({
 
   const content = (
     <div
-      className={`flex h-full min-h-[8.75rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-gradient-to-br ${accentMap[accent]} p-5`}
+      className={`flex h-full min-h-[8.75rem] flex-col justify-between overflow-hidden rounded-[1.35rem] border border-white/10 bg-gradient-to-br ${accentMap[accent]} p-5`}
     >
       <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</p>
       <div className="mt-4">
@@ -655,6 +717,52 @@ function MetricCard({
     <a href={href} target="_blank" rel="noreferrer" className="transition hover:-translate-y-0.5">
       {content}
     </a>
+  );
+}
+
+function TaskResultCard({
+  result,
+  onCopy,
+}: {
+  result: DemoResult;
+  onCopy: (text: string, label: string) => void;
+}) {
+  const txUrl = result.txHash ? `https://testnet.arcscan.app/tx/${result.txHash}` : "";
+  return (
+    <article className="min-w-0 rounded-[1.25rem] border border-white/10 bg-[linear-gradient(145deg,rgba(15,23,42,0.92),rgba(0,0,0,0.28))] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            Task {result.index}/{result.total}
+          </p>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-white">{result.task}</p>
+        </div>
+        <span className="shrink-0 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+          {result.judgeScore.toFixed(2)}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 text-sm text-slate-300 sm:grid-cols-3">
+        <p className="rounded-2xl border border-white/8 bg-black/20 px-3 py-2">
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-slate-500">Broker</span>
+          <span className="mt-1 block truncate text-white">{result.broker}</span>
+        </p>
+        <p className="rounded-2xl border border-white/8 bg-black/20 px-3 py-2">
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-slate-500">Spend</span>
+          <span className="mt-1 block text-white">{fmtUsd(result.priceUsd)}</span>
+        </p>
+        <p className="rounded-2xl border border-white/8 bg-black/20 px-3 py-2">
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-slate-500">Latency</span>
+          <span className="mt-1 block text-white">{result.latencyMs}ms</span>
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {txUrl ? <ActionChip href={txUrl}>Open Arc tx</ActionChip> : null}
+        {result.txHash ? <ActionChip onClick={() => onCopy(result.txHash, "Arc tx")}>Copy hash</ActionChip> : null}
+        {txUrl ? <ActionChip onClick={() => onCopy(txUrl, "Arc tx URL")}>Copy URL</ActionChip> : null}
+      </div>
+    </article>
   );
 }
 
