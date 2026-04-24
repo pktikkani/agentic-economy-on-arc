@@ -18,6 +18,13 @@ import { identityRegistryAbi, reputationRegistryAbi, ERC8004_ADDRESSES } from ".
 import { createCircleContractExecution, getCircleWalletConfig } from "../circle/dev-wallet.js";
 
 const CACHE_PATH = path.join(process.cwd(), ".cache", "broker-ids.json");
+const DEFAULT_AGENT_IDS: CachedIds = {
+  A: "2424",
+  B: "2425",
+  C: "2426",
+  D: "2427",
+  E: "2428",
+};
 
 const arcChain = {
   id: config.arc.chainId,
@@ -42,7 +49,16 @@ function walletFor(pk: `0x${string}`) {
 type CachedIds = Record<string, string>; // brokerId -> agentId (decimal string)
 
 function loadCache(): CachedIds {
-  if (!fs.existsSync(CACHE_PATH)) return {};
+  if (process.env.BROKER_AGENT_IDS_JSON) {
+    return JSON.parse(process.env.BROKER_AGENT_IDS_JSON);
+  }
+  const envIds: CachedIds = {};
+  for (const id of ["A", "B", "C", "D", "E"]) {
+    const value = process.env[`BROKER_AGENT_ID_${id}`];
+    if (value) envIds[id] = value;
+  }
+  if (Object.keys(envIds).length > 0) return envIds;
+  if (!fs.existsSync(CACHE_PATH)) return DEFAULT_AGENT_IDS;
   return JSON.parse(fs.readFileSync(CACHE_PATH, "utf8"));
 }
 
