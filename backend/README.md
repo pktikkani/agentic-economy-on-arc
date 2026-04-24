@@ -39,7 +39,7 @@ DOCKERFILE
 Start command:
 
 ```bash
-python -m uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+Use the Dockerfile CMD. Do not override it in Railway.
 ```
 
 Required env vars are the same Circle, Arc, Gemini, and broker settings used by
