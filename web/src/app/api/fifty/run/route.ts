@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { runA2AFifty } from "@/lib/server/a2a-demo";
+import { proxyBackendStream } from "@/lib/server/remote-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,9 @@ function encode(payload: unknown) {
 
 export async function GET(request: NextRequest) {
   const total = Number(request.nextUrl.searchParams.get("total") ?? "50");
+  const proxied = await proxyBackendStream("/fifty/run", new URLSearchParams({ total: String(total) }));
+  if (proxied) return proxied;
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

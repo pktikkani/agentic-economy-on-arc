@@ -34,25 +34,27 @@ The app will load env vars from either:
 
 See [.env.example](/Users/pavan/Documents/PycharmProjects/agenticEconomyHackathon/web/.env.example) for the full list.
 
+## A2A backend
+
+For the real PydanticAI + A2A protocol runtime, deploy `backend/` on Railway and
+set this env var in Vercel:
+
+```bash
+A2A_BACKEND_URL=https://your-railway-service.up.railway.app
+```
+
+When `A2A_BACKEND_URL` is not set, the web app uses the local TypeScript
+fallback so local development still works.
+
 ## Vercel deployment
 
 If you deploy this app to Vercel, configure:
-- `GOOGLE_GENERATIVE_AI_API_KEY`
-- `CIRCLE_API_KEY`
-- `CIRCLE_ENTITY_SECRET`
-- `CIRCLE_WALLET_ID`
-- `CIRCLE_WALLET_ADDRESS`
-- `ARC_RPC_URL`
-- `ARC_CHAIN_ID`
-- `ARC_EXPLORER`
-- `BROKER_A_URL` … `BROKER_E_URL`
-- `BROKER_AGENT_ID_A` … `BROKER_AGENT_ID_E`
+- `A2A_BACKEND_URL`
 
 Important:
 - The Next app can be hosted on Vercel.
-- The broker seller endpoints still need to be reachable from Vercel. For local
-  dev that means `localhost:3001` … `3005`; for cloud deploy that means public
-  broker URLs.
+- The real Circle, Arc, Gemini, and broker env vars belong on the Railway
+  backend when `A2A_BACKEND_URL` is set.
 
 ## Validation
 

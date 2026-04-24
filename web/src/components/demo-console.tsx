@@ -15,6 +15,7 @@ type DemoState = {
   broker: string;
   judge: string;
   feedbackTx: string;
+  proofLinks: string[];
   requester: string[];
   brokerPanel: string[];
   judgePanel: string[];
@@ -42,6 +43,7 @@ const initialDemoState: DemoState = {
   broker: "Not selected",
   judge: "Pending",
   feedbackTx: "",
+  proofLinks: [],
   requester: [],
   brokerPanel: [],
   judgePanel: [],
@@ -229,7 +231,11 @@ export function DemoConsole() {
                 )}`,
                 `Arc tx proof link: https://testnet.arcscan.app/tx/${payload.txHash}`,
               ],
-              logs: [...state.logs, `arc feedback tx: https://testnet.arcscan.app/tx/${payload.txHash}`],
+              proofLinks: [...state.proofLinks, `https://testnet.arcscan.app/tx/${payload.txHash}`],
+              logs: [
+                ...state.logs,
+                `task feedback proof ${state.proofLinks.length + 1}: https://testnet.arcscan.app/tx/${payload.txHash}`,
+              ],
             };
           case "task_completed":
             return {
@@ -253,10 +259,7 @@ export function DemoConsole() {
                 )} avg=${payload.avgLatencyMs}ms`,
                 payload.receipt ? `receipt=${payload.receipt}` : "",
               ].filter(Boolean),
-              logs: [
-                ...state.logs,
-                payload.receipt ? `demo receipt: ${payload.receipt}` : "",
-              ].filter(Boolean),
+              logs: [...state.logs, payload.receipt ? `demo receipt: ${payload.receipt}` : ""].filter(Boolean),
             };
           default:
             return state;
@@ -372,15 +375,13 @@ export function DemoConsole() {
           <div className="grid gap-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
             <label className="grid gap-2 rounded-3xl border border-white/10 bg-black/20 p-4">
               <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Demo Tasks</span>
-              <select
+              <input
+                type="number"
+                min={1}
                 value={tasks}
-                onChange={(event) => setTasks(Number(event.target.value))}
+                onChange={(event) => setTasks(Math.max(1, Number(event.target.value) || 1))}
                 className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
-              >
-                <option value={1}>1 task</option>
-                <option value={2}>2 tasks</option>
-                <option value={3}>3 tasks</option>
-              </select>
+              />
             </label>
 
             <button
@@ -486,7 +487,7 @@ export function DemoConsole() {
         </Panel>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr_0.95fr]">
         <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -532,10 +533,17 @@ export function DemoConsole() {
           </div>
         </div>
 
-        <Panel title="LIVE LOG / LINKS" className="min-h-[26rem]">
-          {[...demo.logs, ...fifty.logs].length
-            ? [...demo.logs, ...fifty.logs].join("\n")
-            : "Run a demo to populate live proof logs"}
+        <Panel title="DEMO LIVE LOG / LINKS" className="min-h-[26rem]">
+          {[
+            ...demo.logs,
+            demo.proofLinks.length ? "" : "",
+            ...demo.proofLinks.map((link, index) => `arc feedback tx ${index + 1}: ${link}`),
+          ]
+            .filter(Boolean)
+            .join("\n") || "Run the A2A demo to populate task proof links"}
+        </Panel>
+        <Panel title="50-TX PROOF LOG / LINKS" className="min-h-[26rem]">
+          {fifty.logs.length ? fifty.logs.join("\n") : "Run the 50-transaction proof to populate throughput logs"}
         </Panel>
       </section>
     </div>

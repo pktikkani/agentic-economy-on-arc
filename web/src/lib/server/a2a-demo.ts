@@ -168,8 +168,13 @@ async function writeReceipt(filename: string, payload: unknown) {
   return file;
 }
 
+function pickTasks(tasksCount: number) {
+  const count = Math.max(1, Math.floor(Number.isFinite(tasksCount) ? tasksCount : 1));
+  return Array.from({ length: count }, (_, index) => DEMO_TASKS[index % DEMO_TASKS.length]);
+}
+
 export async function* runA2ADemo(tasksCount = 1): AsyncGenerator<DemoEvent> {
-  const tasks = DEMO_TASKS.slice(0, Math.max(1, Math.min(tasksCount, DEMO_TASKS.length)));
+  const tasks = pickTasks(tasksCount);
   const agentIds = getBrokerAgentIds();
   if (!agentIds.A || !agentIds.B || !agentIds.C || !agentIds.D || !agentIds.E) {
     throw new Error("Missing broker agent ids. Populate BROKER_AGENT_ID_* env vars or ../.cache/broker-ids.json first.");

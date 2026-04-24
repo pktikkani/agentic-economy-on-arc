@@ -14,7 +14,8 @@
     "brokers": "tsx src/brokers/seller-server.ts",
     "web:dev": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
-    "web:lint": "npm --prefix web run lint"
+    "web:lint": "npm --prefix web run lint",
+    "backend:dev": "uvicorn backend.app:app --reload --host 127.0.0.1 --port 8000"
   },
   "keywords": [],
   "author": "",

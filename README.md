@@ -134,8 +134,8 @@ npm run brokers
   ```
   Keys: `y` copies the latest Arc tx link, `o` opens it in the browser.
 
-- **Web demo (Next.js 16 + Tailwind 4)** — A2A-style orchestration in a
-  browser UI, suitable for a hosted application URL
+- **Web demo (Next.js 16 + Tailwind 4)** — browser UI suitable for a hosted
+  application URL
   ```bash
   npm run brokers
   npm run web:dev
@@ -144,11 +144,11 @@ npm run brokers
 
   Notes:
   - The web app lives in `web/`.
-  - Locally, it will load secrets from the repo-root `.env`.
-  - For Vercel, configure the same env vars in the Vercel project and set
-    `BROKER_A_URL` … `BROKER_E_URL` to publicly reachable broker endpoints.
-  - If `../.cache/broker-ids.json` is not present in the deployment
-    environment, set `BROKER_AGENT_ID_A` … `BROKER_AGENT_ID_E` explicitly.
+  - Without `A2A_BACKEND_URL`, the web app uses its local TypeScript fallback.
+  - With `A2A_BACKEND_URL`, the web app streams from the real Python
+    PydanticAI + A2A backend in `backend/`.
+  - Deploy the frontend to Vercel and the backend to Railway.
+  - The broker seller endpoints must still be reachable from the backend.
 
 For the submission video, keep the terminal as the main view, but also show:
 - the Circle Developer Console transaction entry for the buyer wallet
