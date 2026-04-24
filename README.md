@@ -10,7 +10,7 @@ broker's output is graded by an LLM judge, and the score is posted on-chain
 so future picks improve over time.
 
 **Stack:** Arc • USDC • **Circle Developer-Controlled Wallets** • Circle Nanopayments
-• x402 • ERC-8004 • Gemini 3 Flash (raw REST function calling) • Node.js + TypeScript
+• x402 • ERC-8004 • Gemini 3 Flash • PydanticAI • A2A • Next.js • Node.js + TypeScript
 
 The buyer agent signs every x402 payment through **Circle's `signTypedData` API** on a
 Circle-managed wallet, and the same buyer wallet handles broker funding plus
@@ -34,29 +34,45 @@ reputation writes through Circle transaction APIs, so every payer-side tx is vis
 
 ## Architecture
 
-```
-┌──────────────────────┐        x402 nanopayment        ┌─────────────────┐
-│  RequesterAgent      │ ────────── USDC ──────────────▶│  Broker A       │
-│  (Gemini 3 Flash +   │                                │  (Gemini Flash) │
-│   function calling)  │◀── service result + payment ───│                 │
-└──────────┬───────────┘           receipt              └─────────────────┘
-           │                                             (5 total brokers,
-           │  giveFeedback()                              3 services,
-           ▼                                              varied $/quality)
-┌──────────────────────┐
-│  ReputationRegistry  │   ERC-8004 on Arc testnet
-│  (on-chain)          │
-└──────────────────────┘
+```mermaid
+flowchart LR
+  User["User / Judge"] --> Web["Next.js Web UI<br/>Vercel"]
+  Web -->|SSE: /demo/run and /fifty/run| Backend["Python A2A Backend<br/>Railway"]
+
+  subgraph Orchestration["PydanticAI + A2A orchestration"]
+    Backend --> Profile["Task Profile Agent<br/>Gemini 3 Flash"]
+    Profile --> Sidecars["A2A Broker Assessment Sidecars<br/>FastA2A / agent.to_a2a"]
+    Sidecars --> Requester["Requester Agent<br/>selects broker by fit, price, reputation"]
+    Requester --> Judge["Judge Agent<br/>scores broker output"]
+  end
+
+  Requester -->|x402 payment request| PayHelpers["Node payment helpers<br/>Circle signTypedData"]
+  PayHelpers --> Circle["Circle Developer-Controlled Wallets<br/>Gateway + Nanopayments"]
+  Circle -->|USDC authorization / settlement| Brokers["Paid Broker APIs<br/>Express + x402 middleware"]
+  Brokers -->|service result| Judge
+
+  Judge -->|giveFeedback score| Reputation["ERC-8004 ReputationRegistry<br/>Arc testnet"]
+  Circle -->|contract execution| Reputation
+  Reputation -->|summary read| Requester
+
+  Backend --> Proof["Arc tx links + receipts<br/>streamed back to UI"]
 ```
 
-- **5 brokers** at varied price/quality tiers across 3 services
-  (sentiment, price-lookup, summarize). Each is a process on its own port
-  with `createGatewayMiddleware(...)` serving an x402 endpoint.
-- **Requester agent** uses Gemini 3 Flash with two tools — `list_brokers` and
-  `pay_broker`. It reads on-chain reputation before selecting.
-- **Judge** (Gemini 3 Flash) grades the broker's output on [0,1].
-- **Feedback** is posted to ERC-8004 ReputationRegistry through the same
-  Circle-managed buyer wallet; future picks read it.
+- **Web frontend:** `web/` is the Vercel-facing Next.js app. It streams demo
+  events from the backend when `A2A_BACKEND_URL` is configured.
+- **A2A backend:** `backend/` is the Railway-facing Python service. It uses
+  PydanticAI agents and A2A sidecars for broker assessment and requester
+  decision flow.
+- **Payment path:** the backend reuses the TypeScript Circle/x402 helpers so
+  the actual payment behavior matches the validated terminal demo.
+- **5 brokers:** broker APIs run x402 middleware, charge $0.002-$0.008 per
+  call, and return the paid service result.
+- **Reputation:** after the judge scores each broker output, the buyer wallet
+  writes ERC-8004 feedback to Arc. Each completed demo task gets its own Arc
+  feedback transaction URL.
+- **50-tx proof:** the throughput proof is kept as a separate run and log panel
+  in the web UI. It proves repeated nanopayments from the buyer wallet and
+  links to the buyer's Arc activity plus a receipt.
 
 ---
 
