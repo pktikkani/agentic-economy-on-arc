@@ -16,6 +16,7 @@ type DemoResult = {
   task: string;
   broker: string;
   judgeScore: number;
+  judgeReason: string;
   priceUsd: number;
   latencyMs: number;
   txHash: string;
@@ -275,7 +276,12 @@ export function DemoConsole() {
             return {
               ...state,
               judge: payload.quality.toFixed(2),
-              judgePanel: [`score=${payload.quality.toFixed(2)}`, payload.reason],
+              judgePanel: [
+                `task ${payload.index ?? "?"}/${payload.total ?? "?"}`,
+                `broker=${payload.brokerId} ${payload.brokerName ?? ""}`.trim(),
+                `score=${payload.quality.toFixed(2)}`,
+                payload.reason,
+              ],
             };
           case "feedback_written":
             return {
@@ -302,12 +308,15 @@ export function DemoConsole() {
                 {
                   index: payload.index,
                   total: payload.total,
-                  task: state.task,
-                  broker: state.broker,
+                  task: payload.task ?? state.task,
+                  broker: payload.brokerName
+                    ? `${payload.brokerId} ${payload.brokerName}`
+                    : state.broker,
                   judgeScore: payload.judgeScore,
+                  judgeReason: payload.judgeReason ?? state.judgePanel.at(-1) ?? "",
                   priceUsd: payload.priceUsd,
                   latencyMs: payload.latencyMs,
-                  txHash: state.feedbackTx,
+                  txHash: payload.txHash ?? state.feedbackTx,
                 },
               ].sort((a, b) => a.index - b.index),
               logs: [
@@ -756,6 +765,13 @@ function TaskResultCard({
           <span className="mt-1 block text-white">{result.latencyMs}ms</span>
         </p>
       </div>
+
+      {result.judgeReason ? (
+        <div className="mt-3 rounded-2xl border border-lime-300/10 bg-lime-300/5 px-3 py-2">
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-lime-200/70">Judge reason</span>
+          <p className="mt-1 line-clamp-3 text-sm leading-6 text-slate-200">{result.judgeReason}</p>
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {txUrl ? <ActionChip href={txUrl}>Open Arc tx</ActionChip> : null}
