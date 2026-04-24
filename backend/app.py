@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, AsyncIterator
 
@@ -16,6 +17,7 @@ from fasta2a.client import A2AClient
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+import httpx
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models.google import GoogleModelSettings
@@ -106,16 +108,54 @@ def run_json(*args: str) -> dict[str, Any]:
     return json.loads(result.stdout)
 
 
-async def wait_for_a2a(base_url: str, timeout_s: float = 15.0) -> None:
+def write_receipt(filename: str, payload: dict[str, Any]) -> str:
+    receipt_dir = REPO_ROOT / "demo-output"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    receipt_path = receipt_dir / filename
+    receipt_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return str(receipt_path.relative_to(REPO_ROOT))
+
+
+def process_error(proc: subprocess.Popen[str]) -> str:
+    if proc.stderr is None:
+        return ""
+    try:
+        return proc.stderr.read().strip()
+    except Exception:
+        return ""
+
+
+async def wait_for_a2a(
+    base_url: str, proc: subprocess.Popen[str] | None = None, timeout_s: float = 20.0
+) -> None:
     started = time.time()
-    while time.time() - started < timeout_s:
-        try:
-            client = A2AClient(base_url)
-            await client.http_client.aclose()
-            return
-        except Exception:
+    payload = {"jsonrpc": "2.0", "id": "readiness", "method": "tasks/get", "params": {"id": "__ready__"}}
+    async with httpx.AsyncClient(base_url=base_url, timeout=1.0) as client:
+        while time.time() - started < timeout_s:
+            if proc is not None and proc.poll() is not None:
+                detail = process_error(proc)
+                raise RuntimeError(
+                    f"A2A sidecar exited before becoming ready: {base_url}"
+                    + (f" ({detail})" if detail else "")
+                )
+            try:
+                response = await client.post("/", json=payload)
+                if response.status_code < 500:
+                    return
+            except httpx.HTTPError:
+                await asyncio.sleep(0.2)
+                continue
             await asyncio.sleep(0.2)
     raise TimeoutError(f"A2A server did not become ready: {base_url}")
+
+
+async def wait_for_sidecars(port_map: dict[str, int], procs: list[subprocess.Popen[str]]) -> None:
+    await asyncio.gather(
+        *[
+            wait_for_a2a(f"http://127.0.0.1:{port}", proc)
+            for port, proc in zip(port_map.values(), procs, strict=True)
+        ]
+    )
 
 
 async def poll_a2a_result(client: A2AClient, task_id: str, timeout_s: float = 45.0) -> dict[str, Any]:
@@ -158,7 +198,7 @@ def spawn_sidecars(port_map: dict[str, int]) -> list[subprocess.Popen[str]]:
                 [sys.executable, "-m", "backend.broker_sidecar", "--broker-id", broker_id, "--port", str(port)],
                 cwd=REPO_ROOT,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
                 env=env,
             )
@@ -219,7 +259,7 @@ async def demo_events(tasks_count: int) -> AsyncIterator[dict[str, Any]]:
     procs = spawn_sidecars(port_map)
 
     try:
-        await asyncio.gather(*[wait_for_a2a(f"http://127.0.0.1:{port}") for port in port_map.values()])
+        await wait_for_sidecars(port_map, procs)
         yield {
             "type": "run_started",
             "totalTasks": len(tasks),
@@ -349,22 +389,24 @@ async def demo_events(tasks_count: int) -> AsyncIterator[dict[str, Any]]:
 async def fifty_events(total: int) -> AsyncIterator[dict[str, Any]]:
     load_env()
     count = max(1, total)
+    run_id = f"web-a2a-fifty-{int(time.time() * 1000)}"
     port = free_port()
     env = load_env()
     proc = subprocess.Popen(
         [sys.executable, "-m", "backend.fast_pay_sidecar", "--broker-id", "A", "--port", str(port)],
         cwd=REPO_ROOT,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
         text=True,
         env=env,
     )
     try:
         base_url = f"http://127.0.0.1:{port}"
-        await wait_for_a2a(base_url)
+        await wait_for_a2a(base_url, proc)
         buyer = env.get("CIRCLE_WALLET_ADDRESS", "unknown")
         yield {
             "type": "fifty_started",
+            "runId": run_id,
             "total": count,
             "sellerUrl": f"{base_url} -> broker A /service-fast",
             "buyer": buyer,
@@ -376,40 +418,99 @@ async def fifty_events(total: int) -> AsyncIterator[dict[str, Any]]:
         started = time.time()
         try:
             for index in range(1, count + 1):
-                response = await client.send_message(
-                    {
-                        "role": "user",
-                        "kind": "message",
-                        "message_id": str(uuid.uuid4()),
-                        "parts": [{"kind": "text", "text": "settle one proof transaction"}],
+                tx_started = time.time()
+                try:
+                    response = await client.send_message(
+                        {
+                            "role": "user",
+                            "kind": "message",
+                            "message_id": str(uuid.uuid4()),
+                            "parts": [{"kind": "text", "text": "settle one proof transaction"}],
+                        }
+                    )
+                    result_task = await poll_a2a_result(client, response["result"]["id"])
+                    result = result_task["result"]["artifacts"][0]["parts"][0]["data"]["result"]
+                    proof_tx_hash = ""
+                    if result["ok"]:
+                        proof = run_json("npx", "tsx", "scripts/give-feedback-json.ts", "A", "1")
+                        proof_tx_hash = proof["txHash"]
+                    dur_ms = round((time.time() - tx_started) * 1000)
+                    record = {"index": index, **result, "dur_ms": dur_ms, "proof_tx_hash": proof_tx_hash}
+                    results.append(record)
+                    yield {
+                        "type": "tx_progress",
+                        "index": index,
+                        "total": count,
+                        "status": result["status"],
+                        "durMs": dur_ms,
+                        "ok": result["ok"] and bool(proof_tx_hash),
+                        "proofTxHash": proof_tx_hash,
                     }
-                )
-                result_task = await poll_a2a_result(client, response["result"]["id"])
-                result = result_task["result"]["artifacts"][0]["parts"][0]["data"]["result"]
-                results.append(result)
-                yield {
-                    "type": "tx_progress",
-                    "index": index,
-                    "total": count,
-                    "status": result["status"],
-                    "durMs": result["dur_ms"],
-                    "ok": result["ok"],
-                }
+                except Exception as error:
+                    dur_ms = round((time.time() - tx_started) * 1000)
+                    record = {
+                        "index": index,
+                        "status": 0,
+                        "dur_ms": dur_ms,
+                        "ok": False,
+                        "proof_tx_hash": "",
+                        "note": str(error),
+                    }
+                    results.append(record)
+                    yield {
+                        "type": "tx_progress",
+                        "index": index,
+                        "total": count,
+                        "status": 0,
+                        "durMs": dur_ms,
+                        "ok": False,
+                        "note": str(error),
+                    }
         finally:
             await client.http_client.aclose()
 
         ok_count = sum(1 for result in results if result["ok"])
         avg = round(sum(result["dur_ms"] for result in results if result["ok"]) / max(1, ok_count))
         total_spent = ok_count * 0.003
+        proof_tx_hashes = [result["proof_tx_hash"] for result in results if result.get("proof_tx_hash")]
+        total_wall_ms = round((time.time() - started) * 1000)
+        buyer_url = f"{EXPLORER}/address/{buyer}"
+        receipt = write_receipt(
+            f"{run_id}.json",
+            {
+                "summary": {
+                    "runId": run_id,
+                    "requirement": "50+ sub-cent on-chain payment proof",
+                    "proofNote": "Arcscan address page is a general buyer activity page; use this receipt timestamp and tx count to identify this run.",
+                    "okCount": ok_count,
+                    "total": count,
+                    "totalWallMs": total_wall_ms,
+                    "avgLatencyMs": avg,
+                    "totalUsdcSpent": total_spent,
+                    "onchainProofCount": len(proof_tx_hashes),
+                    "proofTxHashes": proof_tx_hashes,
+                    "proofTxUrls": [f"{EXPLORER}/tx/{tx_hash}" for tx_hash in proof_tx_hashes],
+                    "buyer": buyer,
+                    "buyerUrl": buyer_url,
+                    "sellerUrl": f"{base_url} -> broker A /service-fast",
+                    "createdAt": datetime.now(UTC).isoformat(),
+                },
+                "results": results,
+            },
+        )
         yield {
             "type": "fifty_summary",
+            "runId": run_id,
             "okCount": ok_count,
             "total": count,
-            "totalWallMs": round((time.time() - started) * 1000),
+            "totalWallMs": total_wall_ms,
             "avgLatencyMs": avg,
             "totalUsdcSpent": total_spent,
+            "onchainProofCount": len(proof_tx_hashes),
+            "proofTxHashes": proof_tx_hashes,
             "buyer": buyer,
-            "buyerUrl": f"{EXPLORER}/address/{buyer}",
+            "buyerUrl": buyer_url,
+            "receipt": receipt,
         }
     finally:
         stop_processes([proc])

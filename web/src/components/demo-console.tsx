@@ -25,9 +25,11 @@ type DemoState = {
 };
 
 type FiftyState = {
+  runId: string;
   progress: number;
   total: number;
   ok: number;
+  proofTxs: string[];
   buyer: string;
   buyerUrl: string;
   sellerUrl: string;
@@ -53,9 +55,11 @@ const initialDemoState: DemoState = {
 };
 
 const initialFiftyState: FiftyState = {
+  runId: "",
   progress: 0,
   total: 50,
   ok: 0,
+  proofTxs: [],
   buyer: "Not loaded",
   buyerUrl: "",
   sellerUrl: "",
@@ -82,6 +86,25 @@ function repLabel(rep: BrokerSnapshot["reputation"]) {
 
 function fmtUsd(value: number) {
   return `$${value.toFixed(4)}`;
+}
+
+function linkifiedText(text: string) {
+  const urlPattern = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlPattern);
+  return parts.map((part, index) => {
+    if (!part.match(urlPattern)) return <span key={`${part}-${index}`}>{part}</span>;
+    return (
+      <a
+        key={`${part}-${index}`}
+        href={part}
+        target="_blank"
+        rel="noreferrer"
+        className="text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-white"
+      >
+        {part}
+      </a>
+    );
+  });
 }
 
 function normalizeAssessment(assessment: {
@@ -315,6 +338,7 @@ export function DemoConsole() {
           case "fifty_started":
             return {
               ...state,
+              runId: payload.runId ?? "",
               total: payload.total,
               buyer: payload.buyer,
               buyerUrl: payload.buyerUrl,
@@ -322,38 +346,45 @@ export function DemoConsole() {
               status: "Proof run in progress",
               logs: [
                 ...state.logs,
+                payload.runId ? `run id=${payload.runId}` : "",
                 `seller=${payload.sellerUrl}`,
                 `buyer=${payload.buyer}`,
-                `arc proof link: ${payload.buyerUrl}`,
-              ],
+                `buyer address on arc: ${payload.buyerUrl}`,
+              ].filter(Boolean),
             };
           case "tx_progress":
             return {
               ...state,
               progress: payload.index,
               ok: state.ok + (payload.ok ? 1 : 0),
+              proofTxs: payload.proofTxHash ? [...state.proofTxs, payload.proofTxHash] : state.proofTxs,
               logs: [
                 ...state.logs,
                 `[${payload.index}/${payload.total}] status=${payload.status} ${
                   payload.ok ? "ok" : "failed"
                 } (${payload.durMs}ms)${payload.note ? ` ${payload.note}` : ""}`,
-              ],
+                payload.proofTxHash ? `arc proof tx ${payload.index}: https://testnet.arcscan.app/tx/${payload.proofTxHash}` : "",
+              ].filter(Boolean),
             };
           case "fifty_summary":
             return {
               ...state,
               progress: payload.total,
               ok: payload.okCount,
+              proofTxs: payload.proofTxHashes ?? state.proofTxs,
               avgLatency: `${payload.avgLatencyMs}ms`,
               spent: fmtUsd(payload.totalUsdcSpent),
               buyer: payload.buyer,
               buyerUrl: payload.buyerUrl,
               receipt: payload.receipt ?? "",
+              runId: payload.runId ?? state.runId,
               status: `Proof complete ${payload.okCount}/${payload.total}`,
               logs: [
                 ...state.logs,
+                payload.runId ? `run id=${payload.runId}` : "",
                 `summary ${payload.okCount}/${payload.total} wall=${payload.totalWallMs}ms avg=${payload.avgLatencyMs}ms`,
-                `buyer on arc: ${payload.buyerUrl}`,
+                `on-chain proof txs=${payload.onchainProofCount ?? state.proofTxs.length}`,
+                `buyer address on arc: ${payload.buyerUrl}`,
                 payload.receipt ? `receipt: ${payload.receipt}` : "",
               ],
             };
@@ -371,7 +402,7 @@ export function DemoConsole() {
   const demoTxUrl = demo.feedbackTx ? `https://testnet.arcscan.app/tx/${demo.feedbackTx}` : "";
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1720px] flex-col gap-6 px-5 py-6 md:px-8 xl:px-10">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1760px] flex-col gap-6 px-5 py-6 md:px-8 xl:px-10">
       <header className="grid gap-6 rounded-[2rem] border border-white/12 bg-[linear-gradient(125deg,rgba(255,184,76,0.16),rgba(7,15,30,0.95)_34%,rgba(5,11,24,0.98)_100%)] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.42)] xl:grid-cols-[minmax(0,1.35fr)_420px] xl:p-8">
         <div className="grid gap-6">
           <div className="max-w-4xl">
@@ -386,22 +417,22 @@ export function DemoConsole() {
               reputation write you already proved in the terminal demo.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
-            <label className="grid gap-2 rounded-3xl border border-white/10 bg-black/20 p-4">
+          <div className="grid gap-4 lg:grid-cols-[220px_minmax(260px,1fr)_minmax(260px,1fr)]">
+            <label className="grid min-w-0 gap-2 rounded-3xl border border-white/10 bg-black/20 p-4">
               <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Demo Tasks</span>
               <input
                 type="number"
                 min={1}
                 value={tasks}
                 onChange={(event) => setTasks(Math.max(1, Number(event.target.value) || 1))}
-                className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+                className="min-w-0 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
               />
             </label>
 
             <button
               onClick={startDemo}
               disabled={activeRun !== null}
-              className="rounded-3xl border border-amber-300/25 bg-[linear-gradient(145deg,rgba(245,190,79,0.92),rgba(181,135,32,0.94))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-w-0 rounded-3xl border border-amber-300/25 bg-[linear-gradient(145deg,rgba(245,190,79,0.92),rgba(181,135,32,0.94))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="block text-[11px] uppercase tracking-[0.24em] text-slate-900/70">Primary Run</span>
               <span className="mt-2 block text-lg">Run A2A Demo</span>
@@ -413,7 +444,7 @@ export function DemoConsole() {
             <button
               onClick={startFifty}
               disabled={activeRun !== null}
-              className="rounded-3xl border border-cyan-400/25 bg-[linear-gradient(145deg,rgba(104,198,224,0.92),rgba(70,126,156,0.98))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(56,189,248,0.15)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-w-0 rounded-3xl border border-cyan-400/25 bg-[linear-gradient(145deg,rgba(104,198,224,0.92),rgba(70,126,156,0.98))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(56,189,248,0.15)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="block text-[11px] uppercase tracking-[0.24em] text-slate-900/70">Proof Run</span>
               <span className="mt-2 block text-lg">Run 50-Tx Proof</span>
@@ -445,7 +476,7 @@ export function DemoConsole() {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
-            <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Demo Tasks</span>
+            <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Run State</span>
             <div className="mt-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xl font-semibold text-white">{activeRun ?? "idle"}</p>
@@ -501,64 +532,79 @@ export function DemoConsole() {
         </Panel>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr_0.95fr]">
+      <section className="grid gap-5">
         <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center justify-between gap-4">
-            <div>
+          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.22em] text-cyan-300/80">A2A Throughput Proof</p>
               <h2 className="mt-2 text-2xl font-semibold text-white">50-transaction settlement run</h2>
-            </div>
-            <div className="text-right text-sm text-slate-400">
-              <p>{fifty.status}</p>
-              <p>{fifty.ok}/{fifty.total} ok</p>
-            </div>
-          </div>
-          <div className="mt-6 rounded-full border border-white/10 bg-slate-900 p-1">
-            <div
-              className="h-4 rounded-full bg-[linear-gradient(90deg,#2dd4bf,#38bdf8,#f59e0b)] transition-all"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Stat label="Buyer" value={clip(fifty.buyer, 18)} href={fifty.buyerUrl || undefined} />
-            <Stat label="Progress" value={`${fifty.progress}/${fifty.total}`} />
-            <Stat label="Avg Latency" value={fifty.avgLatency} />
-            <Stat label="Spent" value={fifty.spent} />
-          </div>
-          <div className="mt-6 space-y-3 text-sm text-slate-300">
-            <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-              <span className="text-slate-500">Seller URL:</span> {fifty.sellerUrl || "Not started"}
-            </p>
-            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-              <p>
-                <span className="text-slate-500">Arc proof link:</span>{" "}
-                {fifty.buyerUrl ? shortHash(fifty.buyerUrl, 34, 16) : "Pending"}
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                Each item makes a sub-cent x402 service payment and writes a matching Arc reputation proof tx.
+                The individual proof tx links appear in the log below.
               </p>
-              {fifty.buyerUrl ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <ActionChip href={fifty.buyerUrl}>Open proof</ActionChip>
-                  <ActionChip onClick={() => copyText(fifty.buyerUrl, "50-tx proof URL")}>Copy URL</ActionChip>
-                </div>
-              ) : null}
+              <div className="mt-5 text-sm text-slate-400">
+                <p>{fifty.status}</p>
+                <p>{fifty.ok}/{fifty.total} ok</p>
+                {fifty.runId ? <p className="mt-1 break-all">run id: {fifty.runId}</p> : null}
+              </div>
             </div>
-            <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-              <span className="text-slate-500">Receipt:</span> {fifty.receipt || "Pending"}
-            </p>
+            <div className="min-w-0">
+              <div className="rounded-full border border-white/10 bg-slate-900 p-1">
+                <div
+                  className="h-4 rounded-full bg-[linear-gradient(90deg,#2dd4bf,#38bdf8,#f59e0b)] transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                <Stat label="Buyer" value={shortHash(fifty.buyer, 8, 6)} href={fifty.buyerUrl || undefined} />
+                <Stat label="Progress" value={`${fifty.progress}/${fifty.total}`} />
+                <Stat label="Arc Proof Txs" value={`${fifty.proofTxs.length}/${fifty.total}`} />
+                <Stat label="Avg Latency" value={fifty.avgLatency} />
+                <Stat label="Service Spend" value={fifty.spent} />
+              </div>
+              <div className="mt-5 grid gap-3 text-sm text-slate-300 xl:grid-cols-3">
+                <p className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <span className="block text-xs uppercase tracking-[0.18em] text-slate-500">Seller URL</span>
+                  <span className="mt-2 block break-all">{fifty.sellerUrl || "Not started"}</span>
+                </p>
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <span className="block text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Buyer Address On Arc
+                  </span>
+                  <span className="mt-2 block break-all">{fifty.buyerUrl || "Pending"}</span>
+                  <span className="mt-2 block text-xs leading-5 text-slate-500">
+                    Not exclusive to this run; use the newest transactions plus receipt run ID.
+                  </span>
+                  {fifty.buyerUrl ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <ActionChip href={fifty.buyerUrl}>Open address</ActionChip>
+                      <ActionChip onClick={() => copyText(fifty.buyerUrl, "Buyer address URL")}>Copy URL</ActionChip>
+                    </div>
+                  ) : null}
+                </div>
+                <p className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <span className="block text-xs uppercase tracking-[0.18em] text-slate-500">Receipt</span>
+                  <span className="mt-2 block break-all">{fifty.receipt || "Pending"}</span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <Panel title="DEMO LIVE LOG / LINKS" className="min-h-[26rem]">
-          {[
-            ...demo.logs,
-            demo.proofLinks.length ? "" : "",
-            ...demo.proofLinks.map((link, index) => `arc feedback tx ${index + 1}: ${link}`),
-          ]
-            .filter(Boolean)
-            .join("\n") || "Run the A2A demo to populate task proof links"}
-        </Panel>
-        <Panel title="50-TX PROOF LOG / LINKS" className="min-h-[26rem]">
-          {fifty.logs.length ? fifty.logs.join("\n") : "Run the 50-transaction proof to populate throughput logs"}
-        </Panel>
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Panel title="DEMO LIVE LOG / LINKS" className="min-h-[26rem]">
+            {[
+              ...demo.logs,
+              demo.proofLinks.length ? "" : "",
+              ...demo.proofLinks.map((link, index) => `arc feedback tx ${index + 1}: ${link}`),
+            ]
+              .filter(Boolean)
+              .join("\n") || "Run the A2A demo to populate task proof links"}
+          </Panel>
+          <Panel title="50-TX PROOF LOG / LINKS" className="min-h-[26rem]">
+            {fifty.logs.length ? fifty.logs.join("\n") : "Run the 50-transaction proof to populate throughput logs"}
+          </Panel>
+        </div>
       </section>
     </div>
   );
@@ -630,8 +676,8 @@ function Panel({
       <div className="mb-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1 text-xs uppercase tracking-[0.22em] text-amber-200">
         {title}
       </div>
-      <pre className="overflow-auto whitespace-pre-wrap break-words rounded-[1.2rem] border border-white/8 bg-black/30 p-4 text-sm leading-8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        {children}
+      <pre className="overflow-auto whitespace-pre-wrap break-all rounded-[1.2rem] border border-white/8 bg-black/30 p-4 text-sm leading-8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        {linkifiedText(children)}
       </pre>
     </section>
   );
@@ -641,7 +687,7 @@ function Stat({ label, value, href }: { label: string; value: string; href?: str
   const content = (
     <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm text-white">{value}</p>
+      <p className="mt-2 break-all text-sm text-white">{value}</p>
     </div>
   );
   if (!href) return content;

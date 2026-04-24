@@ -24,7 +24,7 @@ reputation writes through Circle transaction APIs, so every payer-side tx is vis
 | Requirement | Status | Evidence |
 |---|---|---|
 | Real per-action pricing ≤ $0.01 | ✅ | $0.002–$0.008 per broker call |
-| 50+ on-chain transactions in demo | ✅ | `npm run fifty` → 50/50 in 89s, receipt in `demo-output/` |
+| 50+ on-chain transactions in demo | ✅ | Web/TUI 50 proof writes 50 Arc proof txs, with receipt in `demo-output/` |
 | Margin explanation vs. traditional gas | ✅ | [docs/MARGIN.md](docs/MARGIN.md) |
 | Transaction flow video incl. Circle Console + Arc explorer | ✅ | see video plan in [docs/VIDEO_NOTES.md](docs/VIDEO_NOTES.md) |
 | Public GitHub repo | ✅ | this repo |
@@ -71,8 +71,9 @@ flowchart LR
   writes ERC-8004 feedback to Arc. Each completed demo task gets its own Arc
   feedback transaction URL.
 - **50-tx proof:** the throughput proof is kept as a separate run and log panel
-  in the web UI. It proves repeated nanopayments from the buyer wallet and
-  links to the buyer's Arc activity plus a receipt.
+  in the web UI. Each item performs a sub-cent x402 service payment and writes
+  a matching Arc reputation proof tx, so the log contains 50 clickable Arc tx
+  URLs plus a run-specific receipt.
 
 ---
 

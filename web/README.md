@@ -9,7 +9,7 @@ It mirrors the terminal demo stages:
 - sub-cent USDC payment
 - judge scoring
 - Arc reputation write
-- 50-transaction throughput proof
+- 50-transaction throughput proof with one clickable Arc proof tx per item
 
 ## Local development
 

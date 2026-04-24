@@ -86,6 +86,7 @@ type DemoEvent =
     }
   | {
       type: "fifty_started";
+      runId?: string;
       total: number;
       sellerUrl: string;
       buyer: string;
@@ -98,15 +99,19 @@ type DemoEvent =
       status: number;
       durMs: number;
       ok: boolean;
+      proofTxHash?: string;
       note?: string;
     }
   | {
       type: "fifty_summary";
+      runId?: string;
       okCount: number;
       total: number;
       totalWallMs: number;
       avgLatencyMs: number;
       totalUsdcSpent: number;
+      onchainProofCount?: number;
+      proofTxHashes?: string[];
       buyer: string;
       buyerUrl: string;
       receipt?: string;
@@ -316,12 +321,18 @@ export async function* runA2ADemo(tasksCount = 1): AsyncGenerator<DemoEvent> {
 
 export async function* runA2AFifty(total = 50): AsyncGenerator<DemoEvent> {
   const count = Math.max(1, Math.min(total, 200));
+  const runId = `web-a2a-fifty-${Date.now()}`;
   await ensureGatewayFunded(1);
+  const agentIds = getBrokerAgentIds();
+  if (!agentIds.A) {
+    throw new Error("Missing broker A agent id. Populate BROKER_AGENT_ID_A env var or ../.cache/broker-ids.json first.");
+  }
 
   const buyer = config.circle.walletAddress;
   const sellerUrl = brokerServiceUrl(brokerById("A"), "/service-fast");
   yield {
     type: "fifty_started",
+    runId,
     total: count,
     sellerUrl,
     buyer,
@@ -329,15 +340,17 @@ export async function* runA2AFifty(total = 50): AsyncGenerator<DemoEvent> {
   };
 
   const startedAt = Date.now();
-  const results: Array<{ status: number; durMs: number; ok: boolean; note?: string }> = [];
+  const results: Array<{ status: number; durMs: number; ok: boolean; proofTxHash?: string; note?: string }> = [];
   for (let index = 1; index <= count; index += 1) {
     const txStarted = Date.now();
     try {
       const paid = await circlePay<unknown>(sellerUrl);
+      const proofTxHash = paid.status === 200 ? await giveFeedback(agentIds.A, 1) : "";
       const result = {
         status: paid.status,
         durMs: Date.now() - txStarted,
-        ok: paid.status === 200,
+        ok: paid.status === 200 && Boolean(proofTxHash),
+        proofTxHash,
       };
       results.push(result);
       yield { type: "tx_progress", index, total: count, ...result };
@@ -358,13 +371,18 @@ export async function* runA2AFifty(total = 50): AsyncGenerator<DemoEvent> {
     results.filter((entry) => entry.ok).reduce((sum, entry) => sum + entry.durMs, 0) / Math.max(1, okCount)
   );
   const totalUsdcSpent = okCount * Number(brokerById("A").price.replace("$", ""));
+  const proofTxHashes = results.map((entry) => entry.proofTxHash).filter((entry): entry is string => Boolean(entry));
   const receipt = await writeReceipt(`web-fifty-${Date.now()}.json`, {
     summary: {
+      runId,
       okCount,
       total: count,
       totalWallMs: Date.now() - startedAt,
       avgLatencyMs,
       totalUsdcSpent,
+      onchainProofCount: proofTxHashes.length,
+      proofTxHashes,
+      proofTxUrls: proofTxHashes.map((txHash) => `${explorer}/tx/${txHash}`),
       buyer,
     },
     results,
@@ -372,11 +390,14 @@ export async function* runA2AFifty(total = 50): AsyncGenerator<DemoEvent> {
 
   yield {
     type: "fifty_summary",
+    runId,
     okCount,
     total: count,
     totalWallMs: Date.now() - startedAt,
     avgLatencyMs,
     totalUsdcSpent,
+    onchainProofCount: proofTxHashes.length,
+    proofTxHashes,
     buyer,
     buyerUrl: `${explorer}/address/${buyer}`,
     receipt,
