@@ -84,6 +84,23 @@ function fmtUsd(value: number) {
   return `$${value.toFixed(4)}`;
 }
 
+function normalizeAssessment(assessment: {
+  brokerId?: string;
+  broker_id?: string;
+  brokerName?: string;
+  broker_name?: string;
+  fitScore?: number;
+  fit_score?: number;
+  reason?: string;
+}) {
+  return {
+    brokerId: assessment.brokerId ?? assessment.broker_id ?? "?",
+    brokerName: assessment.brokerName ?? assessment.broker_name ?? "Unknown",
+    fitScore: assessment.fitScore ?? assessment.fit_score ?? 0,
+    reason: assessment.reason ?? "",
+  };
+}
+
 export function DemoConsole() {
   const [tasks, setTasks] = useState(1);
   const [demo, setDemo] = useState<DemoState>(initialDemoState);
@@ -176,17 +193,14 @@ export function DemoConsole() {
               ...state,
               requester: [
                 ...state.requester,
-                ...payload.assessments.map(
-                  (assessment: {
-                    brokerId: string;
-                    brokerName: string;
-                    fitScore: number;
-                    reason: string;
-                  }) =>
+                ...payload.assessments.map((raw: Parameters<typeof normalizeAssessment>[0]) => {
+                  const assessment = normalizeAssessment(raw);
+                  return (
                     `${assessment.brokerId} ${assessment.brokerName} fit=${assessment.fitScore.toFixed(
                       2
                     )} ${clip(assessment.reason, 90)}`
-                ),
+                  );
+                }),
               ],
             };
           case "a2a_decision":
