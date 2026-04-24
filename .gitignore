@@ -1,10 +1,16 @@
 .env
 .env.local
+.env*
+!.env.example
 node_modules/
 .next/
+out/
+build/
+coverage/
 dist/
 *.log
 .DS_Store
+.vercel/
 .claude/
 .cache/
 .venv/
@@ -12,6 +18,9 @@ demo-output/
 output/
 scripts/__pycache__/
 *.pyc
+*.tsbuildinfo
+next-env.d.ts
 agenticeconomyhackathon@1.0.0
 tsx
 tmp/
+web/

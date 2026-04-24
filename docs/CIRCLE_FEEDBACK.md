@@ -61,10 +61,12 @@ clean:
 
 1. **Python SDK gap.** The ecosystem right now (Pydantic AI, web3.py,
    anthropic/google SDKs, huggingface) is Python-dominant, but
-   `@circle-fin/x402-batching` is TypeScript/Node-only. We pivoted our entire
-   stack to Node to avoid a subprocess bridge. A first-party Python client
-   — even just sign-and-submit helpers over the existing REST surface — would
-   open a much bigger developer segment. Priority: high.
+   `@circle-fin/x402-batching` is TypeScript/Node-only. Our final hosted
+   architecture uses a Python FastAPI/PydanticAI/A2A backend, but it still
+   shells out to TypeScript helpers for the Circle/x402 payment path. A
+   first-party Python client — even just sign-and-submit helpers over the
+   existing REST surface — would open a much bigger developer segment.
+   Priority: high.
 
 2. **`getBalances()` returns `wallet: undefined` on Arc.** Because USDC is the
    native token, the ERC-20 wallet balance path doesn't populate. The native

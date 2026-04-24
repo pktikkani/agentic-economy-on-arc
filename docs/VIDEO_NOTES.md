@@ -14,31 +14,33 @@ A single full-screen title card with:
 > Reputation-weighted broker selection · USDC nanopayments · Arc testnet
 
 ### 0:15 – 0:40  Setup shot
-Split terminal. Left pane:
+Backend repo terminal:
 ```bash
 npm run brokers
+python -m uvicorn backend.app:app --reload --host 127.0.0.1 --port 8000
 ```
-Show all 5 brokers come up on ports 3001–3005. Zoom into one health line so
-the chain ID (`eip155:5042002`) is visible.
+
+Web repo terminal:
+```bash
+npm run dev
+```
+
+Open the web UI and show it is connected to Arc testnet / Railway backend.
 
 ### 0:40 – 1:30  Agent run (live)
-Right pane:
-```bash
-DEMO_N=3 npm run demo
-```
-- Freeze frame on the first task so the viewer sees:
-  `[1/3] Classify sentiment: 'I absolutely love the new dashboard.'`
-- Let it run through 3 tasks. Emphasize:
-  - Broker chosen
-  - `judge=<score>` line
-  - `feedback: https://testnet.arcscan.app/tx/0x...` link
+Click **Run A2A Demo** in the web UI.
+
+Emphasize:
+- requester assessment
+- selected broker
+- judge score
+- `Arc feedback tx` link
 
 ### 1:30 – 2:05  Arc explorer verification
 Open the Circle Developer Console transaction list first and show the buyer
 wallet transaction entry that corresponds to the demo run.
 
-Then open one of the printed `feedback: https://testnet.arcscan.app/tx/0x...`
-links in the browser. Show:
+Then open one of the web UI `Arc feedback tx` links in the browser. Show:
 - Transaction status: Success
 - To: `0x8004B663056A597Dffe9eCcC1965A193B7388713` (ReputationRegistry)
 - Block / confirmation
@@ -47,14 +49,13 @@ Then open `https://testnet.arcscan.app/address/0x77a280cf6552ccc946204432c2d1794
 (the buyer) and show the long list of outbound transactions.
 
 ### 2:05 – 2:40  50-tx throughput proof
-Back to terminal:
-```bash
-npm run fifty
-```
+Back to the web UI. Click **Run 50-Tx Proof**.
+
 Let the counter climb. Highlight:
-- `50/50 ok in ~89s`
-- `Avg latency: ~1.8s per tx`
-- `Total USDC: $0.150`
+- `50/50 ok`
+- average latency
+- service spend around `$0.150`
+- individual Arc proof tx links in the 50-tx log
 
 Small zoom on the final summary box.
 

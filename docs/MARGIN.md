@@ -13,11 +13,11 @@ and you clear real margin.
 |---|---|
 | Service price per call (broker A) | **$0.003** |
 | Service price per call (broker B, quality tier) | **$0.008** |
-| 50-tx proof run (`npm run fifty`) | **50/50 settlements, 89s wall, $0.15 revenue** |
-| Avg latency per settlement | **~1.79s** |
+| 50-tx proof run (web UI) | **50/50 settlements, ~$0.15 service revenue** |
+| Avg latency per settlement | **low-single-second in the latest demo runs** |
 | Buyer's gas paid per tx | **~$0** (Circle batches + pays on-chain gas) |
 | Chain | Arc testnet (chain ID 5042002) |
-| Proof receipt | `demo-output/fifty-tx-*.json` |
+| Proof receipt | backend `demo-output/web-a2a-fifty-*.json` |
 
 Buyer address on Arc explorer:
 https://testnet.arcscan.app/address/0x77a280cf6552ccc946204432c2d17941c4f41832
@@ -54,6 +54,7 @@ zone agent-to-agent commerce has to live in — pay-per-query, pay-per-inference
 pay-per-action — and the zone that's been locked out of on-chain settlement
 until now.
 
-This project runs 50 settlements for 15¢ in 89 seconds, with the buyer paying
-zero gas. Same workload on Ethereum mainnet would cost $25–$250 in gas to move
-15¢ of value: a structurally impossible business.
+This project runs 50 sub-cent service payments plus matching Arc proof writes,
+with the buyer-side payment path using Circle Nanopayments rather than a direct
+gas-paid transfer per API call. The same workload on Ethereum mainnet would cost
+$25–$250 in gas to move 15¢ of service value: a structurally impossible business.

@@ -1,223 +1,136 @@
 # Agent-to-Agent Marketplace on Arc
 
-A solo submission for the **Agentic Economy on Arc** hackathon (Apr 20–25,
-2026). Track: **Agent-to-Agent Payment Loop**.
+Web UI repository for the **Agentic Economy on Arc** hackathon submission.
 
-A requester agent routes user tasks to one of 5 broker agents — picked by
-fit, price, and **on-chain ERC-8004 reputation** — and pays each broker per
-query in sub-cent USDC nanopayments. Every payment settles on Arc. Every
-broker's output is graded by an LLM judge, and the score is posted on-chain
-so future picks improve over time.
+Track: **Agent-to-Agent Payment Loop**
 
-**Stack:** Arc • USDC • **Circle Developer-Controlled Wallets** • Circle Nanopayments
-• x402 • ERC-8004 • Gemini 3 Flash • PydanticAI • A2A • Next.js • Node.js + TypeScript
+This project demonstrates AI agents coordinating work, paying each other in sub-cent USDC via Circle Nanopayments/x402, and recording quality feedback on Arc as ERC-8004 reputation.
 
-The buyer agent signs every x402 payment through **Circle's `signTypedData` API** on a
-Circle-managed wallet, and the same buyer wallet handles broker funding plus
-reputation writes through Circle transaction APIs, so every payer-side tx is visible in the
-[Circle Developer Console](https://console.circle.com/wallets/dev/transactions).
+## Repositories
 
----
+The submission is split into two public repositories so each deploy target stays simple:
 
-## Hackathon requirements — status
-
-| Requirement | Status | Evidence |
+| Part | Repository | Deploy Target |
 |---|---|---|
-| Real per-action pricing ≤ $0.01 | ✅ | $0.002–$0.008 per broker call |
-| 50+ on-chain transactions in demo | ✅ | Web/TUI 50 proof writes 50 Arc proof txs, with receipt in `demo-output/` |
-| Margin explanation vs. traditional gas | ✅ | [docs/MARGIN.md](docs/MARGIN.md) |
-| Transaction flow video incl. Circle Console + Arc explorer | ✅ | see video plan in [docs/VIDEO_NOTES.md](docs/VIDEO_NOTES.md) |
-| Public GitHub repo | ✅ | this repo |
-| Circle Product Feedback writeup | ✅ | [docs/CIRCLE_FEEDBACK.md](docs/CIRCLE_FEEDBACK.md) |
+| Web UI | https://github.com/pktikkani/agentic-economy-on-arc | Vercel |
+| A2A backend | https://github.com/pktikkani/agentic-economy-on-arc-backend | Railway |
 
----
+If the hackathon form accepts only one repository URL, submit the web UI repo and mention the backend repo in the description/readme.
+
+## What It Shows
+
+- A requester agent receives a user task.
+- Broker agents advertise paid capabilities: sentiment, price lookup, and summarization.
+- The requester selects the best broker using service fit, price, and reputation.
+- The buyer pays the broker per action using sub-cent USDC.
+- A judge agent scores the broker output.
+- The score is written to Arc as reputation feedback.
+- A separate 50-transaction proof shows high-frequency sub-cent settlement viability.
+
+## Hackathon Requirements
+
+| Requirement | Status |
+|---|---|
+| Real per-action pricing <= $0.01 | $0.002 to $0.008 per broker call |
+| 50+ on-chain transactions | The web UI has a separate 50-transaction proof run with individual Arc tx links |
+| Circle infrastructure | Circle Developer-Controlled Wallets, Gateway/Nanopayments, x402 payment flow |
+| Arc settlement | Arc testnet tx links are streamed into the UI and visible on Arcscan |
+| Margin explanation | See [docs/MARGIN.md](docs/MARGIN.md) |
+| Circle feedback | See [docs/CIRCLE_FEEDBACK.md](docs/CIRCLE_FEEDBACK.md) |
+| Video notes | See [docs/VIDEO_NOTES.md](docs/VIDEO_NOTES.md) |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   User["User / Judge"] --> Web["Next.js Web UI<br/>Vercel"]
-  Web -->|SSE: /demo/run and /fifty/run| Backend["Python A2A Backend<br/>Railway"]
+  Web -->|SSE API routes| Backend["FastAPI A2A Backend<br/>Railway"]
 
-  subgraph Orchestration["PydanticAI + A2A orchestration"]
-    Backend --> Profile["Task Profile Agent<br/>Gemini 3 Flash"]
-    Profile --> Sidecars["A2A Broker Assessment Sidecars<br/>FastA2A / agent.to_a2a"]
-    Sidecars --> Requester["Requester Agent<br/>selects broker by fit, price, reputation"]
-    Requester --> Judge["Judge Agent<br/>scores broker output"]
+  subgraph BackendFlow["Backend orchestration"]
+    Backend --> Profiler["PydanticAI Task Profiler<br/>Gemini 3 Flash"]
+    Backend --> BrokersA2A["A2A Broker Assessment Sidecars"]
+    Backend --> Requester["Requester Decision Agent"]
+    Backend --> Judge["Judge Agent"]
   end
 
-  Requester -->|x402 payment request| PayHelpers["Node payment helpers<br/>Circle signTypedData"]
-  PayHelpers --> Circle["Circle Developer-Controlled Wallets<br/>Gateway + Nanopayments"]
-  Circle -->|USDC authorization / settlement| Brokers["Paid Broker APIs<br/>Express + x402 middleware"]
-  Brokers -->|service result| Judge
-
-  Judge -->|giveFeedback score| Reputation["ERC-8004 ReputationRegistry<br/>Arc testnet"]
-  Circle -->|contract execution| Reputation
-  Reputation -->|summary read| Requester
-
-  Backend --> Proof["Arc tx links + receipts<br/>streamed back to UI"]
+  Requester --> Helpers["TypeScript Circle/x402 Helpers"]
+  Helpers --> Circle["Circle Developer-Controlled Wallet"]
+  Helpers --> PaidBrokers["x402 Paid Broker APIs"]
+  Circle --> Arc["Arc Testnet<br/>ERC-8004 Reputation"]
+  Judge --> Helpers
+  Backend -->|Arc tx links + receipts| Web
 ```
 
-- **Web frontend:** `web/` is the Vercel-facing Next.js app. It streams demo
-  events from the backend when `A2A_BACKEND_URL` is configured.
-- **A2A backend:** `backend/` is the Railway-facing Python service. It uses
-  PydanticAI agents and A2A sidecars for broker assessment and requester
-  decision flow.
-- **Payment path:** the backend reuses the TypeScript Circle/x402 helpers so
-  the actual payment behavior matches the validated terminal demo.
-- **5 brokers:** broker APIs run x402 middleware, charge $0.002-$0.008 per
-  call, and return the paid service result.
-- **Reputation:** after the judge scores each broker output, the buyer wallet
-  writes ERC-8004 feedback to Arc. Each completed demo task gets its own Arc
-  feedback transaction URL.
-- **50-tx proof:** the throughput proof is kept as a separate run and log panel
-  in the web UI. Each item performs a sub-cent x402 service payment and writes
-  a matching Arc reputation proof tx, so the log contains 50 clickable Arc tx
-  URLs plus a run-specific receipt.
+## Local Web Run
 
----
+Create `.env.local`:
 
-## Setup
+```bash
+A2A_BACKEND_URL=http://127.0.0.1:8000
+```
 
-**1. Install**
+Then run:
+
 ```bash
 npm install
+npm run dev
 ```
 
-**2. Configure** — copy `.env.example` to `.env` and fill in:
-- `GOOGLE_GENERATIVE_AI_API_KEY` from https://aistudio.google.com/apikey
-- `CIRCLE_API_KEY` from https://console.circle.com/
-- 5 fresh broker private keys (brokers sign their own ERC-8004 registrations):
-  ```bash
-  node -e "console.log('0x' + require('crypto').randomBytes(32).toString('hex'))"
-  ```
+Open http://localhost:3000.
 
-**3. Bootstrap the Circle-managed buyer wallet**
-```bash
-npx tsx scripts/bootstrap-circle-wallet.ts
-# writes CIRCLE_ENTITY_SECRET, CIRCLE_WALLET_SET_ID, CIRCLE_WALLET_ID,
-# CIRCLE_WALLET_ADDRESS into .env. Saves recovery file in ./output/.
+The Python backend must be running separately. See the backend repo:
+
+https://github.com/pktikkani/agentic-economy-on-arc-backend
+
+## Vercel Deploy
+
+Because this repository is now web-only, Vercel should use the repository root.
+
+Recommended Vercel settings:
+
+```text
+Framework Preset: Next.js
+Root Directory: empty
+Install Command: npm ci
+Build Command: npm run build
+Output Directory: empty
+Node.js Version: 22.x
 ```
 
-**4. Fund via faucet**
-```
-https://faucet.circle.com → Arc testnet → paste CIRCLE_WALLET_ADDRESS
-```
-
-**5. Deposit into Gateway (enables x402 batched payments)**
-```bash
-npx tsx scripts/deposit-to-gateway.ts 5
-```
-
-**6. Register brokers on ERC-8004** (one-time, cached to disk)
-```bash
-npx tsx scripts/register-brokers.ts
-```
-This script tops up broker gas from the Circle-managed buyer wallet if needed.
-
----
-
-## Running the demo
-
-**Start the 5 brokers** (leave running in one terminal)
-```bash
-npm run brokers
-```
-
-**In another terminal:**
-
-- **50-tx proof** — the hackathon's hard requirement, now shown in a Textual UI
-  ```bash
-  npm run fifty
-  ```
-- **50-tx CLI fallback** — raw terminal output + JSON receipt
-  ```bash
-  npm run fifty:cli
-  ```
-
-- **Full agent demo** — end-to-end user-task → broker selection → payment
-  → judge → reputation feedback
-  ```bash
-  npm run demo          # full 50 tasks (slow, LLM-bound)
-  DEMO_N=10 npm run demo  # 10 tasks for the video
-  ```
-
-- **Textual live UI** — same demo flow, but split into Requester / Broker /
-  Judge / Chain panels for recording
-  ```bash
-  uv venv
-  uv pip install -r requirements-textual.txt
-  python3 scripts/textual_demo.py --tasks 3
-  ```
-  Keys: `y` copies the latest Arc tx link, `o` opens it in the browser.
-
-- **Web demo (Next.js 16 + Tailwind 4)** — browser UI suitable for a hosted
-  application URL
-  ```bash
-  npm run brokers
-  npm run web:dev
-  ```
-  Then open `http://localhost:3000`.
-
-  Notes:
-  - The web app lives in `web/`.
-  - Without `A2A_BACKEND_URL`, the web app uses its local TypeScript fallback.
-  - With `A2A_BACKEND_URL`, the web app streams from the real Python
-    PydanticAI + A2A backend in `backend/`.
-  - Deploy the frontend to Vercel and the backend to Railway.
-  - The broker seller endpoints must still be reachable from the backend.
-
-For the submission video, keep the terminal as the main view, but also show:
-- the Circle Developer Console transaction entry for the buyer wallet
-- the corresponding Arc explorer verification
-
----
-
-## Tests
-
-Integration tests run against real Arc + real Gemini.
+Required Vercel environment variable:
 
 ```bash
-npm test
+A2A_BACKEND_URL=https://agentic-economy.prag-matic.com
 ```
 
-- `tests/critical-path.test.ts` — full register → pay → judge → feedback → re-read loop
-- `tests/judge.test.ts` — judge grading calibration (sentiment, price-lookup)
-- `tests/selection.test.ts` — reputation-driven broker selection
+Circle, Arc, Gemini, and broker private keys belong only in Railway/backend, not in Vercel.
 
----
+## Backend Deploy
 
-## Key files
+Deploy the backend repository to Railway:
 
-| File | Role |
-|---|---|
-| `src/agents/requester.ts` | Requester agent: raw-REST Gemini function calling loop |
-| `src/brokers/registry.ts` | The 5 brokers, their prices and quality |
-| `src/brokers/seller-server.ts` | Express servers, x402 middleware, Gemini inference |
-| `src/brokers/service-impl.ts` | Per-service Gemini prompts (sentiment, price, summarize) |
-| `src/circle/circle-pay.ts` | **Circle-managed x402 payments** (signs via signTypedData API) |
-| `src/circle/dev-wallet.ts` | Circle wallet helpers for transfers + contract execution |
-| `src/circle/pay.ts` | Thin wrapper: routes agent payments through circle-pay |
-| `src/circle/gemini-tools.ts` | Hand-rolled Gemini function-calling loop (faster than SDK) |
-| `src/reputation/client.ts` | ERC-8004 reads and writes |
-| `src/reputation/judge.ts` | Gemini 3 Flash judge |
-| `src/demo/run.ts` | 50-query demo driver with summary |
-| `scripts/fifty-tx.ts` | 50-tx proof script |
-| `docs/MARGIN.md` | Margin argument |
-| `docs/CIRCLE_FEEDBACK.md` | Circle Product Feedback writeup |
+https://github.com/pktikkani/agentic-economy-on-arc-backend
 
----
+Railway target port for the custom domain: `8080`.
 
-## Submission artifacts
+The backend owns:
 
-- **Receipts:** `demo-output/fifty-tx-*.json` and `demo-output/run-*.json`
-- **Buyer on Arc explorer:** https://testnet.arcscan.app/address/0x77a280cf6552ccc946204432c2d17941c4f41832
-- **ERC-8004 agent IDs:**
-  - Broker A (FastSent): 2424
-  - Broker B (DeepSent): 2425
-  - Broker C (QuickPrice): 2426
-  - Broker D (SharpPrice): 2427
-  - Broker E (Summarizer): 2428
-- **Registries on Arc:**
-  - IdentityRegistry: `0x8004A818BFB912233c491871b3d84c89A494BD9e`
-  - ReputationRegistry: `0x8004B663056A597Dffe9eCcC1965A193B7388713`
+- Gemini API key
+- Circle API key and Developer-Controlled Wallet values
+- Broker private keys
+- Arc RPC/explorer config
+- Payment, broker execution, and ERC-8004 reputation writes
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+```
+
+## Submission Links
+
+- Web repo: https://github.com/pktikkani/agentic-economy-on-arc
+- Backend repo: https://github.com/pktikkani/agentic-economy-on-arc-backend
+- Backend health: https://agentic-economy.prag-matic.com/health
+- Buyer on Arc: https://testnet.arcscan.app/address/0x77a280cf6552ccc946204432c2d17941c4f41832
