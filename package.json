@@ -11,7 +11,10 @@
     "fifty:cli": "tsx scripts/fifty-tx.ts",
     "smoke": "tsx scripts/smoke-transfer.ts",
     "test:watch": "vitest",
-    "brokers": "tsx src/brokers/seller-server.ts"
+    "brokers": "tsx src/brokers/seller-server.ts",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:lint": "npm --prefix web run lint"
   },
   "keywords": [],
   "author": "",

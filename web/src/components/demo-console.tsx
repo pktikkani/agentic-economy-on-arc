@@ -1,0 +1,664 @@
+"use client";
+
+import { useMemo, useRef, useState } from "react";
+
+type BrokerSnapshot = {
+  id: string;
+  name: string;
+  service: string;
+  price: string;
+  reputation: { count: number; avg: number } | null;
+};
+
+type DemoState = {
+  task: string;
+  broker: string;
+  judge: string;
+  feedbackTx: string;
+  requester: string[];
+  brokerPanel: string[];
+  judgePanel: string[];
+  chainPanel: string[];
+  logs: string[];
+  status: string;
+};
+
+type FiftyState = {
+  progress: number;
+  total: number;
+  ok: number;
+  buyer: string;
+  buyerUrl: string;
+  sellerUrl: string;
+  avgLatency: string;
+  spent: string;
+  logs: string[];
+  receipt: string;
+  status: string;
+};
+
+const initialDemoState: DemoState = {
+  task: "Waiting for demo run",
+  broker: "Not selected",
+  judge: "Pending",
+  feedbackTx: "",
+  requester: [],
+  brokerPanel: [],
+  judgePanel: [],
+  chainPanel: [],
+  logs: [],
+  status: "Idle",
+};
+
+const initialFiftyState: FiftyState = {
+  progress: 0,
+  total: 50,
+  ok: 0,
+  buyer: "Not loaded",
+  buyerUrl: "",
+  sellerUrl: "",
+  avgLatency: "-",
+  spent: "-",
+  logs: [],
+  receipt: "",
+  status: "Idle",
+};
+
+function clip(text: string, max = 220) {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function shortHash(text: string, head = 10, tail = 8) {
+  if (text.length <= head + tail + 3) return text;
+  return `${text.slice(0, head)}…${text.slice(-tail)}`;
+}
+
+function repLabel(rep: BrokerSnapshot["reputation"]) {
+  if (!rep) return "no rep";
+  return `rep=${rep.avg.toFixed(2)} (${rep.count})`;
+}
+
+function fmtUsd(value: number) {
+  return `$${value.toFixed(4)}`;
+}
+
+export function DemoConsole() {
+  const [tasks, setTasks] = useState(1);
+  const [demo, setDemo] = useState<DemoState>(initialDemoState);
+  const [fifty, setFifty] = useState<FiftyState>(initialFiftyState);
+  const [activeRun, setActiveRun] = useState<"demo" | "fifty" | null>(null);
+  const [copiedLabel, setCopiedLabel] = useState("");
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  async function copyText(text: string, label: string) {
+    await navigator.clipboard.writeText(text);
+    setCopiedLabel(label);
+    window.setTimeout(() => setCopiedLabel(""), 1500);
+  }
+
+  function stopCurrentRun() {
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
+    setActiveRun(null);
+  }
+
+  function startDemo() {
+    stopCurrentRun();
+    setDemo({
+      ...initialDemoState,
+      status: "Running A2A demo",
+      requester: ["A2A assessment pipeline booted"],
+      logs: ["Starting live A2A orchestration run"],
+    });
+    const source = new EventSource(`/api/demo/run?tasks=${tasks}`);
+    eventSourceRef.current = source;
+    setActiveRun("demo");
+    source.onmessage = (message) => {
+      const payload = JSON.parse(message.data);
+      if (payload.type === "done") {
+        setActiveRun(null);
+        source.close();
+        return;
+      }
+      if (payload.type === "error") {
+        setDemo((state) => ({
+          ...state,
+          status: `Error: ${payload.message}`,
+          logs: [...state.logs, `error: ${payload.message}`],
+        }));
+        setActiveRun(null);
+        source.close();
+        return;
+      }
+
+      setDemo((state) => {
+        switch (payload.type) {
+          case "run_started":
+            return {
+              ...state,
+              status: `Connected to Arc testnet (${payload.chainId})`,
+              requester: [
+                `A2A assessment started with ${payload.model}`,
+                `Arc explorer: ${payload.explorer}`,
+              ],
+            };
+          case "task_started":
+            return {
+              ...state,
+              task: payload.task,
+              logs: [...state.logs, `task ${payload.index}/${payload.total}: ${payload.task}`],
+            };
+          case "requester_snapshot":
+            return {
+              ...state,
+              requester: [
+                "A2A broker assessments",
+                ...payload.brokers.map(
+                  (broker: BrokerSnapshot) =>
+                    `${broker.id} ${broker.name} ${broker.service} ${broker.price} ${repLabel(
+                      broker.reputation
+                    )}`
+                ),
+              ],
+            };
+          case "a2a_assessment_started":
+            return {
+              ...state,
+              requester: [
+                ...state.requester,
+                `Target service=${payload.service}, complexity=${payload.complexity}, candidates=${payload.count}`,
+              ],
+            };
+          case "a2a_assessment_results":
+            return {
+              ...state,
+              requester: [
+                ...state.requester,
+                ...payload.assessments.map(
+                  (assessment: {
+                    brokerId: string;
+                    brokerName: string;
+                    fitScore: number;
+                    reason: string;
+                  }) =>
+                    `${assessment.brokerId} ${assessment.brokerName} fit=${assessment.fitScore.toFixed(
+                      2
+                    )} ${clip(assessment.reason, 90)}`
+                ),
+              ],
+            };
+          case "a2a_decision":
+            return {
+              ...state,
+              broker: `${payload.brokerId} ${payload.brokerName}`,
+              requester: [...state.requester, `Decision: ${payload.reason}`],
+              logs: [...state.logs, `selected ${payload.brokerId} ${payload.brokerName}`],
+            };
+          case "broker_selected":
+            return {
+              ...state,
+              brokerPanel: [
+                `Selected ${payload.brokerId} ${payload.brokerName}`,
+                `service=${payload.service}`,
+                `input=${payload.input}`,
+              ],
+            };
+          case "broker_response":
+            return {
+              ...state,
+              brokerPanel: [
+                ...state.brokerPanel,
+                `payer=${payload.payer}`,
+                `amount=${payload.amount} network=${payload.network}`,
+                clip(payload.outputPreview, 240),
+              ],
+            };
+          case "judge_score":
+            return {
+              ...state,
+              judge: payload.quality.toFixed(2),
+              judgePanel: [`score=${payload.quality.toFixed(2)}`, payload.reason],
+            };
+          case "feedback_written":
+            return {
+              ...state,
+              feedbackTx: payload.txHash,
+              chainPanel: [
+                `Arc reputation feedback recorded for broker=${payload.brokerId} score=${payload.quality.toFixed(
+                  2
+                )}`,
+                `Arc tx proof link: https://testnet.arcscan.app/tx/${payload.txHash}`,
+              ],
+              logs: [...state.logs, `arc feedback tx: https://testnet.arcscan.app/tx/${payload.txHash}`],
+            };
+          case "task_completed":
+            return {
+              ...state,
+              status: `Completed ${payload.index}/${payload.total}`,
+              logs: [
+                ...state.logs,
+                `completed ${payload.index}/${payload.total} broker=${payload.brokerId} spent=${fmtUsd(
+                  payload.priceUsd
+                )} judge=${payload.judgeScore.toFixed(2)} latency=${payload.latencyMs}ms`,
+              ],
+            };
+          case "run_summary":
+            return {
+              ...state,
+              status: `Run complete ${payload.completed}/${payload.total}`,
+              chainPanel: [
+                ...state.chainPanel,
+                `Arc run summary completed=${payload.completed}/${payload.total} spent=${fmtUsd(
+                  payload.totalUsdcSpent
+                )} avg=${payload.avgLatencyMs}ms`,
+                payload.receipt ? `receipt=${payload.receipt}` : "",
+              ].filter(Boolean),
+              logs: [
+                ...state.logs,
+                payload.receipt ? `demo receipt: ${payload.receipt}` : "",
+              ].filter(Boolean),
+            };
+          default:
+            return state;
+        }
+      });
+    };
+  }
+
+  function startFifty() {
+    stopCurrentRun();
+    setFifty({
+      ...initialFiftyState,
+      status: "Running throughput proof",
+      logs: ["Starting 50-transaction A2A throughput proof"],
+    });
+    const source = new EventSource("/api/fifty/run?total=50");
+    eventSourceRef.current = source;
+    setActiveRun("fifty");
+    source.onmessage = (message) => {
+      const payload = JSON.parse(message.data);
+      if (payload.type === "done") {
+        setActiveRun(null);
+        source.close();
+        return;
+      }
+      if (payload.type === "error") {
+        setFifty((state) => ({
+          ...state,
+          status: `Error: ${payload.message}`,
+          logs: [...state.logs, `error: ${payload.message}`],
+        }));
+        setActiveRun(null);
+        source.close();
+        return;
+      }
+
+      setFifty((state) => {
+        switch (payload.type) {
+          case "fifty_started":
+            return {
+              ...state,
+              total: payload.total,
+              buyer: payload.buyer,
+              buyerUrl: payload.buyerUrl,
+              sellerUrl: payload.sellerUrl,
+              status: "Proof run in progress",
+              logs: [
+                ...state.logs,
+                `seller=${payload.sellerUrl}`,
+                `buyer=${payload.buyer}`,
+                `arc proof link: ${payload.buyerUrl}`,
+              ],
+            };
+          case "tx_progress":
+            return {
+              ...state,
+              progress: payload.index,
+              ok: state.ok + (payload.ok ? 1 : 0),
+              logs: [
+                ...state.logs,
+                `[${payload.index}/${payload.total}] status=${payload.status} ${
+                  payload.ok ? "ok" : "failed"
+                } (${payload.durMs}ms)${payload.note ? ` ${payload.note}` : ""}`,
+              ],
+            };
+          case "fifty_summary":
+            return {
+              ...state,
+              progress: payload.total,
+              ok: payload.okCount,
+              avgLatency: `${payload.avgLatencyMs}ms`,
+              spent: fmtUsd(payload.totalUsdcSpent),
+              buyer: payload.buyer,
+              buyerUrl: payload.buyerUrl,
+              receipt: payload.receipt ?? "",
+              status: `Proof complete ${payload.okCount}/${payload.total}`,
+              logs: [
+                ...state.logs,
+                `summary ${payload.okCount}/${payload.total} wall=${payload.totalWallMs}ms avg=${payload.avgLatencyMs}ms`,
+                `buyer on arc: ${payload.buyerUrl}`,
+                payload.receipt ? `receipt: ${payload.receipt}` : "",
+              ],
+            };
+          default:
+            return state;
+        }
+      });
+    };
+  }
+
+  const progressPct = useMemo(() => {
+    if (!fifty.total) return 0;
+    return Math.round((fifty.progress / fifty.total) * 100);
+  }, [fifty.progress, fifty.total]);
+  const demoTxUrl = demo.feedbackTx ? `https://testnet.arcscan.app/tx/${demo.feedbackTx}` : "";
+
+  return (
+    <div className="mx-auto flex min-h-screen w-full max-w-[1720px] flex-col gap-6 px-5 py-6 md:px-8 xl:px-10">
+      <header className="grid gap-6 rounded-[2rem] border border-white/12 bg-[linear-gradient(125deg,rgba(255,184,76,0.16),rgba(7,15,30,0.95)_34%,rgba(5,11,24,0.98)_100%)] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.42)] xl:grid-cols-[minmax(0,1.35fr)_420px] xl:p-8">
+        <div className="grid gap-6">
+          <div className="max-w-4xl">
+            <p className="mb-3 inline-flex rounded-full border border-amber-300/30 bg-amber-200/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-amber-200/85">
+              Next.js A2A Demo Surface
+            </p>
+            <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl xl:text-[3.7rem] xl:leading-[1.02]">
+              Arc Agent-to-Agent Marketplace
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
+              A web-native control room for the same broker selection, sub-cent USDC payment, judge scoring, and Arc
+              reputation write you already proved in the terminal demo.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+            <label className="grid gap-2 rounded-3xl border border-white/10 bg-black/20 p-4">
+              <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Demo Tasks</span>
+              <select
+                value={tasks}
+                onChange={(event) => setTasks(Number(event.target.value))}
+                className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+              >
+                <option value={1}>1 task</option>
+                <option value={2}>2 tasks</option>
+                <option value={3}>3 tasks</option>
+              </select>
+            </label>
+
+            <button
+              onClick={startDemo}
+              disabled={activeRun !== null}
+              className="rounded-3xl border border-amber-300/25 bg-[linear-gradient(145deg,rgba(245,190,79,0.92),rgba(181,135,32,0.94))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="block text-[11px] uppercase tracking-[0.24em] text-slate-900/70">Primary Run</span>
+              <span className="mt-2 block text-lg">Run A2A Demo</span>
+              <span className="mt-2 block text-xs font-medium text-slate-900/75">
+                Requester → broker → judge → Arc
+              </span>
+            </button>
+
+            <button
+              onClick={startFifty}
+              disabled={activeRun !== null}
+              className="rounded-3xl border border-cyan-400/25 bg-[linear-gradient(145deg,rgba(104,198,224,0.92),rgba(70,126,156,0.98))] px-5 py-4 text-left text-sm font-semibold text-slate-950 shadow-[0_18px_30px_rgba(56,189,248,0.15)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="block text-[11px] uppercase tracking-[0.24em] text-slate-900/70">Proof Run</span>
+              <span className="mt-2 block text-lg">Run 50-Tx Proof</span>
+              <span className="mt-2 block text-xs font-medium text-slate-900/75">
+                High-frequency sub-cent throughput
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
+            <a
+              className="rounded-full border border-white/10 px-4 py-2 text-center transition hover:border-amber-300/40 hover:text-white"
+              href="https://console.circle.com/wallets/dev/transactions"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Circle Console
+            </a>
+            <a
+              className="rounded-full border border-white/10 px-4 py-2 text-center transition hover:border-amber-300/40 hover:text-white"
+              href="https://testnet.arcscan.app"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Arc Explorer
+            </a>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+            <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Demo Tasks</span>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xl font-semibold text-white">{activeRun ?? "idle"}</p>
+                <p className="mt-1 text-sm text-slate-300">
+                  {activeRun === "fifty" ? fifty.status : demo.status}
+                </p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-300">
+                {activeRun ? "live" : "standby"}
+              </span>
+            </div>
+            {copiedLabel ? (
+              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-emerald-300">{copiedLabel} copied</p>
+            ) : null}
+          </div>
+        </div>
+      </header>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_0.8fr_0.7fr_1.3fr]">
+        <MetricCard label="Task" value={demo.task} accent="amber" />
+        <MetricCard label="Broker" value={demo.broker} accent="orange" />
+        <MetricCard label="Judge" value={demo.judge} accent="lime" valueClassName="font-mono text-3xl" />
+        <MetricCard
+          label="Arc Feedback Tx"
+          value={demo.feedbackTx ? shortHash(demo.feedbackTx, 14, 10) : "Pending"}
+          accent="cyan"
+          href={demoTxUrl || undefined}
+          mono
+          footer={
+            demo.feedbackTx ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <ActionChip href={demoTxUrl}>Open tx</ActionChip>
+                <ActionChip onClick={() => copyText(demo.feedbackTx, "Arc tx")}>Copy hash</ActionChip>
+                <ActionChip onClick={() => copyText(demoTxUrl, "Arc tx URL")}>Copy URL</ActionChip>
+              </div>
+            ) : null
+          }
+        />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-2">
+        <Panel title="REQUESTER" minHeight="min-h-[22rem]">
+          {demo.requester.length ? demo.requester.join("\n") : "Waiting for requester state"}
+        </Panel>
+        <Panel title="JUDGE" minHeight="min-h-[22rem]">
+          {demo.judgePanel.length ? demo.judgePanel.join("\n") : "Waiting for judge output"}
+        </Panel>
+        <Panel title="BROKER" minHeight="min-h-[20rem]">
+          {demo.brokerPanel.length ? demo.brokerPanel.join("\n") : "Waiting for broker execution"}
+        </Panel>
+        <Panel title="ARC CHAIN / REPUTATION" minHeight="min-h-[20rem]">
+          {demo.chainPanel.length ? demo.chainPanel.join("\n") : "Waiting for Arc feedback write"}
+        </Panel>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-cyan-300/80">A2A Throughput Proof</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">50-transaction settlement run</h2>
+            </div>
+            <div className="text-right text-sm text-slate-400">
+              <p>{fifty.status}</p>
+              <p>{fifty.ok}/{fifty.total} ok</p>
+            </div>
+          </div>
+          <div className="mt-6 rounded-full border border-white/10 bg-slate-900 p-1">
+            <div
+              className="h-4 rounded-full bg-[linear-gradient(90deg,#2dd4bf,#38bdf8,#f59e0b)] transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Stat label="Buyer" value={clip(fifty.buyer, 18)} href={fifty.buyerUrl || undefined} />
+            <Stat label="Progress" value={`${fifty.progress}/${fifty.total}`} />
+            <Stat label="Avg Latency" value={fifty.avgLatency} />
+            <Stat label="Spent" value={fifty.spent} />
+          </div>
+          <div className="mt-6 space-y-3 text-sm text-slate-300">
+            <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <span className="text-slate-500">Seller URL:</span> {fifty.sellerUrl || "Not started"}
+            </p>
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <p>
+                <span className="text-slate-500">Arc proof link:</span>{" "}
+                {fifty.buyerUrl ? shortHash(fifty.buyerUrl, 34, 16) : "Pending"}
+              </p>
+              {fifty.buyerUrl ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ActionChip href={fifty.buyerUrl}>Open proof</ActionChip>
+                  <ActionChip onClick={() => copyText(fifty.buyerUrl, "50-tx proof URL")}>Copy URL</ActionChip>
+                </div>
+              ) : null}
+            </div>
+            <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <span className="text-slate-500">Receipt:</span> {fifty.receipt || "Pending"}
+            </p>
+          </div>
+        </div>
+
+        <Panel title="LIVE LOG / LINKS" className="min-h-[26rem]">
+          {[...demo.logs, ...fifty.logs].length
+            ? [...demo.logs, ...fifty.logs].join("\n")
+            : "Run a demo to populate live proof logs"}
+        </Panel>
+      </section>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  accent,
+  href,
+  mono = false,
+  footer,
+  valueClassName = "",
+}: {
+  label: string;
+  value: string;
+  accent: "amber" | "orange" | "lime" | "cyan";
+  href?: string;
+  mono?: boolean;
+  footer?: React.ReactNode;
+  valueClassName?: string;
+}) {
+  const accentMap = {
+    amber: "from-amber-300/16 to-amber-200/6 text-amber-100",
+    orange: "from-orange-300/16 to-orange-200/6 text-orange-100",
+    lime: "from-lime-300/16 to-lime-200/6 text-lime-100",
+    cyan: "from-cyan-300/16 to-cyan-200/6 text-cyan-100",
+  } as const;
+
+  const content = (
+    <div
+      className={`flex h-full min-h-[9.5rem] flex-col justify-between rounded-[1.4rem] border border-white/10 bg-gradient-to-br ${accentMap[accent]} p-5`}
+    >
+      <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</p>
+      <div className="mt-4">
+        <p
+          className={`${mono ? "font-mono text-[15px] leading-7" : "text-lg leading-8"} break-words text-white ${valueClassName}`}
+        >
+          {clip(value, 96)}
+        </p>
+        {footer}
+      </div>
+    </div>
+  );
+
+  if (!href || footer) return content;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="transition hover:-translate-y-0.5">
+      {content}
+    </a>
+  );
+}
+
+function Panel({
+  title,
+  children,
+  className = "",
+  minHeight = "",
+}: {
+  title: string;
+  children: string;
+  className?: string;
+  minHeight?: string;
+}) {
+  return (
+    <section
+      className={`rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-5 shadow-[0_18px_40px_rgba(0,0,0,0.35)] ${minHeight} ${className}`}
+    >
+      <div className="mb-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1 text-xs uppercase tracking-[0.22em] text-amber-200">
+        {title}
+      </div>
+      <pre className="overflow-auto whitespace-pre-wrap break-words rounded-[1.2rem] border border-white/8 bg-black/30 p-4 text-sm leading-8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        {children}
+      </pre>
+    </section>
+  );
+}
+
+function Stat({ label, value, href }: { label: string; value: string; href?: string }) {
+  const content = (
+    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm text-white">{value}</p>
+    </div>
+  );
+  if (!href) return content;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="transition hover:-translate-y-0.5">
+      {content}
+    </a>
+  );
+}
+
+function ActionChip({
+  children,
+  href,
+  onClick,
+}: {
+  children: React.ReactNode;
+  href?: string;
+  onClick?: () => void;
+}) {
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="rounded-full border border-white/12 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-slate-200 transition hover:border-amber-300/35 hover:text-white"
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full border border-white/12 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-slate-200 transition hover:border-amber-300/35 hover:text-white"
+    >
+      {children}
+    </button>
+  );
+}
