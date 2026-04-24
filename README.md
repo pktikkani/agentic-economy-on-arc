@@ -91,9 +91,9 @@ Recommended Vercel settings:
 ```text
 Framework Preset: Next.js
 Root Directory: empty
-Install Command: npm ci
-Build Command: npm run build
-Output Directory: empty
+Install Command: default / no override
+Build Command: default / no override
+Output Directory: default / no override
 Node.js Version: 22.x
 ```
 
