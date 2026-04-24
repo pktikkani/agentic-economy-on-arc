@@ -32,7 +32,7 @@ The repo pins Railway/Nixpacks to Node 22 and Python 3.12 through
 Build command:
 
 ```bash
-pip install -r backend/requirements.txt
+python3 -m pip install -r backend/requirements.txt
 ```
 
 Nixpacks install command:
@@ -44,7 +44,7 @@ npm ci --omit=dev
 Start command:
 
 ```bash
-uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+python3 -m uvicorn backend.app:app --host 0.0.0.0 --port $PORT
 ```
 
 Required env vars are the same Circle, Arc, Gemini, and broker settings used by
