@@ -32,7 +32,13 @@ The repo pins Railway/Nixpacks to Node 22 and Python 3.12 through
 Build command:
 
 ```bash
-npm ci && pip install -r backend/requirements.txt
+pip install -r backend/requirements.txt
+```
+
+Nixpacks install command:
+
+```bash
+npm ci --omit=dev
 ```
 
 Start command:
