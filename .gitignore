@@ -13,3 +13,4 @@ scripts/__pycache__/
 *.pyc
 agenticeconomyhackathon@1.0.0
 tsx
+tmp/
