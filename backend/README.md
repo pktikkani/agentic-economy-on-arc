@@ -26,6 +26,8 @@ A2A_BACKEND_URL=http://127.0.0.1:8000
 ## Railway
 
 Use the repo root as the Railway project root.
+The repo pins Railway/Nixpacks to Node 22 and Python 3.12 through
+`package.json` and `nixpacks.toml`; do not deploy only the `backend/` folder.
 
 Build command:
 
