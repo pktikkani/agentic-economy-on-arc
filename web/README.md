@@ -46,15 +46,19 @@ A2A_BACKEND_URL=https://your-railway-service.up.railway.app
 When `A2A_BACKEND_URL` is not set, the web app uses the local TypeScript
 fallback so local development still works.
 
-## Vercel deployment
+## Vercel
 
-If you deploy this app to Vercel, configure:
-- `A2A_BACKEND_URL`
+Use the repository root as the Vercel project root. The root `vercel.json`
+installs and builds this `web/` app and points Vercel at `web/.next`.
 
-Important:
-- The Next app can be hosted on Vercel.
-- The real Circle, Arc, Gemini, and broker env vars belong on the Railway
-  backend when `A2A_BACKEND_URL` is set.
+Configure this Vercel env var:
+
+```bash
+A2A_BACKEND_URL=https://agentic-economy.prag-matic.com
+```
+
+The real Circle, Arc, Gemini, and broker env vars belong on the Railway backend,
+not Vercel.
 
 ## Validation
 
