@@ -439,7 +439,7 @@ export function DemoConsole() {
         <div className="grid gap-6">
           <div className="max-w-4xl">
             <p className="mb-3 inline-flex max-w-full rounded-full border border-amber-300/30 bg-amber-200/10 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-amber-200/85 sm:text-xs">
-              Next.js A2A Demo Surface
+              Arc Nanopayments Control Room
             </p>
             <h1 className="text-balance text-4xl font-semibold tracking-tight text-white md:text-5xl xl:text-[3.45rem] xl:leading-[1.02]">
               Arc Agent-to-Agent Marketplace
